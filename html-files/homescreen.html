@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BillCraft - Home</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700;800&amp;family=Pacifico&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#22c55e",
+                        "background-dark": "#0a0a0a",
+                        "text-main": "#f5f5f5",
+                        "text-muted": "#9ca3af",
+                        "card-dark": "#171717",
+                        "border-dark": "rgba(255, 255, 255, 0.1)",
+                    },
+                    fontFamily: {
+                        "display": ["Manrope", "sans-serif"],
+                        "logo": ["Pacifico", "cursive"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background-dark text-text-main min-h-screen flex flex-col font-display antialiased overflow-x-hidden">
+<header class="w-full flex items-center justify-between px-6 py-4 md:px-10 border-b border-primary/10 bg-background-dark/50 backdrop-blur-sm fixed top-0 z-50">
+<div class="flex items-center gap-3 text-white">
+<span class="material-symbols-outlined text-primary text-2xl">schedule</span>
+<div class="font-mono text-lg md:text-xl font-medium tracking-wide text-white" id="clock">--:--:--</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="group relative px-6 py-2 rounded-lg border border-primary text-primary bg-transparent hover:bg-primary hover:text-white transition-all duration-300 ease-in-out font-bold text-sm tracking-wide overflow-hidden">
+<span class="relative z-10">Login</span>
+<div class="absolute inset-0 bg-primary/0 group-hover:bg-primary/10 transition-colors duration-300"></div>
+</button>
+</div>
+</header>
+<main class="flex-grow flex flex-col items-center justify-center px-4 md:px-8 relative pt-20">
+<div class="absolute inset-0 z-0 opacity-10 pointer-events-none" style="background-image: radial-gradient(#22c55e 1px, transparent 1px); background-size: 32px 32px;">
+</div>
+<div class="relative z-10 flex flex-col items-center max-w-4xl w-full text-center mb-12 animate-fade-in-up">
+<h1 class="text-6xl md:text-8xl lg:text-9xl text-white font-logo mb-6 drop-shadow-2xl selection:bg-primary selection:text-white">
+            BillCraft
+        </h1>
+<p class="text-slate-400 text-lg md:text-xl max-w-2xl font-medium tracking-tight">
+            Professional Freelance Management Made Easy
+        </p>
+</div>
+<div class="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl">
+<button class="group flex flex-col items-start p-8 rounded-xl bg-card-dark border border-border-dark hover:border-primary transition-all duration-300 hover:shadow-[0_0_20px_rgba(34,197,94,0.15)] hover:-translate-y-1 text-left relative overflow-hidden">
+<div class="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-primary">
+<span class="material-symbols-outlined">arrow_outward</span>
+</div>
+<div class="size-14 rounded-lg bg-primary/10 border border-transparent shadow-none flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-white transition-colors duration-300 text-primary">
+<span class="material-symbols-outlined text-3xl">contract</span>
+</div>
+<h3 class="text-2xl font-bold text-white mb-2 group-hover:text-primary transition-colors">Generate Contract</h3>
+<p class="text-slate-400 font-normal leading-relaxed">Create airtight agreements in seconds. Protect your work and define clear terms.</p>
+<div class="mt-6 flex items-center text-sm font-bold text-white group-hover:text-primary">
+<span>Start Drafting</span>
+<span class="material-symbols-outlined text-sm ml-1 transition-transform group-hover:translate-x-1">chevron_right</span>
+</div>
+</button>
+<button class="group flex flex-col items-start p-8 rounded-xl bg-card-dark border border-border-dark hover:border-primary transition-all duration-300 hover:shadow-[0_0_20px_rgba(34,197,94,0.15)] hover:-translate-y-1 text-left relative overflow-hidden">
+<div class="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-primary">
+<span class="material-symbols-outlined">arrow_outward</span>
+</div>
+<div class="size-14 rounded-lg bg-primary/10 border border-transparent shadow-none flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-white transition-colors duration-300 text-primary">
+<span class="material-symbols-outlined text-3xl">receipt_long</span>
+</div>
+<h3 class="text-2xl font-bold text-white mb-2 group-hover:text-primary transition-colors">Generate Invoice</h3>
+<p class="text-slate-400 font-normal leading-relaxed">Get paid faster with professional invoices. Track payments and manage clients effortlessly.</p>
+<div class="mt-6 flex items-center text-sm font-bold text-white group-hover:text-primary">
+<span>Create Invoice</span>
+<span class="material-symbols-outlined text-sm ml-1 transition-transform group-hover:translate-x-1">chevron_right</span>
+</div>
+</button>
+</div>
+<div class="relative z-10 mt-16 md:mt-24 grid grid-cols-3 gap-8 md:gap-16 text-center border-t border-white/10 pt-8 opacity-80 hover:opacity-100 transition-opacity duration-500">
+<div>
+<div class="text-2xl md:text-3xl font-bold text-white">10k+</div>
+<div class="text-xs uppercase tracking-widest text-slate-400 mt-1">Freelancers</div>
+</div>
+<div>
+<div class="text-2xl md:text-3xl font-bold text-white">$50M+</div>
+<div class="text-xs uppercase tracking-widest text-slate-400 mt-1">Invoiced</div>
+</div>
+<div>
+<div class="text-2xl md:text-3xl font-bold text-white">24/7</div>
+<div class="text-xs uppercase tracking-widest text-slate-400 mt-1">Support</div>
+</div>
+</div>
+</main>
+<script>
+    function updateClock() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+</script>
+</body></html>
