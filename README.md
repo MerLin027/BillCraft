@@ -126,9 +126,3 @@ BillCraft uses a minimal dark aesthetic built around:
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
-
----
-
-<div align="center">
-
-Made with dedication at **CHARUSAT University**
