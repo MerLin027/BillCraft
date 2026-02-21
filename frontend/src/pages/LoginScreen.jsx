@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 
@@ -11,10 +11,21 @@ export default function LoginScreen() {
   const [remember, setRemember] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [exiting, setExiting] = useState(false)
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 10)
+    return () => clearTimeout(t)
+  }, [])
 
   function navigateTo(path) {
     setExiting(true)
     setTimeout(() => navigate(path), 300)
+  }
+
+  function navigateWithFade(path) {
+    setVisible(false)
+    setTimeout(() => navigate(path), 220)
   }
 
   function handleLogin(e) {
@@ -22,11 +33,18 @@ export default function LoginScreen() {
     login()
     const destination = intendedDestination || '/dashboard'
     setIntendedDestination(null)
-    navigate(destination)
+    navigateWithFade(destination)
   }
 
   return (
-    <div className="bg-[#0a0a0a] text-[#f5f5f5] font-display h-screen overflow-hidden flex flex-col antialiased">
+    <div className="bg-[#0a0a0a] h-screen overflow-hidden">
+      <div
+        className="text-[#f5f5f5] font-display h-full flex flex-col antialiased"
+        style={{
+          opacity: visible ? 1 : 0,
+          transition: 'opacity 220ms ease-in-out',
+        }}
+      >
       <div className="flex flex-col lg:flex-row h-full w-full overflow-hidden">
 
         {/* Left decorative panel — desktop only */}
@@ -46,7 +64,7 @@ export default function LoginScreen() {
             <div className="absolute -inset-6 bg-[#22c55e]/10 rounded-full blur-2xl opacity-30 pointer-events-none" />
             <h1
               className="font-cursive text-3xl text-[#22c55e] tracking-wide relative z-10 drop-shadow-sm cursor-pointer hover:opacity-80 transition-opacity duration-200"
-              onClick={() => navigate('/home')}
+              onClick={() => navigateWithFade('/home')}
             >
               BillCraft
             </h1>
@@ -217,7 +235,7 @@ export default function LoginScreen() {
               Don't have an account?
               <button
                 type="button"
-                onClick={() => navigateTo('/signup')}
+                onClick={() => navigateWithFade('/signup')}
                 className="text-[#22c55e] hover:text-[#22c55e]/80 font-bold ml-1 transition-colors"
               >
                 Sign Up
@@ -228,6 +246,7 @@ export default function LoginScreen() {
 
         </div>
 
+      </div>
       </div>
     </div>
   )

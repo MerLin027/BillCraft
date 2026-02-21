@@ -6,6 +6,12 @@ export default function HomeScreen() {
   const navigate = useNavigate()
   const { user, clients, generations, setIntendedDestination } = useApp()
   const [clock, setClock] = useState('--:--:--')
+  const [fading, setFading] = useState(false)
+
+  function navigateWithFade(path) {
+    setFading(true)
+    setTimeout(() => navigate(path), 220)
+  }
 
   useEffect(() => {
     function updateClock() {
@@ -21,7 +27,14 @@ export default function HomeScreen() {
   }, [])
 
   return (
-    <div className="bg-[#0a0a0a] text-[#f5f5f5] h-screen overflow-hidden flex flex-col font-display antialiased">
+    <div className="bg-[#0a0a0a] h-screen overflow-hidden">
+      <div
+        className="text-[#f5f5f5] h-full flex flex-col font-display antialiased"
+        style={{
+          opacity: fading ? 0 : 1,
+          transition: 'opacity 220ms ease-in-out',
+        }}
+      >
 
       {/* Header */}
       <header className="w-full flex items-center justify-between px-6 py-3 md:px-10 border-b border-[#22c55e]/10 bg-[#0a0a0a]/50 backdrop-blur-sm z-50">
@@ -33,7 +46,7 @@ export default function HomeScreen() {
         </div>
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/login')}
+            onClick={() => navigateWithFade('/login')}
             className="group relative px-6 py-2 rounded-lg border border-[#22c55e] text-[#22c55e] bg-transparent hover:bg-[#22c55e] hover:text-white transition-all duration-300 ease-in-out font-bold text-sm tracking-wide overflow-hidden"
           >
             <span className="relative z-10">Login</span>
@@ -66,7 +79,7 @@ export default function HomeScreen() {
 
           {/* Contract card */}
           <button
-            onClick={() => { setIntendedDestination('/contract-builder'); navigate('/login') }}
+            onClick={() => { setIntendedDestination('/contract-builder'); navigateWithFade('/login') }}
             className="group flex flex-col items-start p-6 rounded-xl bg-[#171717] border border-white/10 hover:border-[#22c55e] transition-all duration-300 hover:shadow-[0_0_20px_rgba(34,197,94,0.15)] hover:-translate-y-1 text-left relative overflow-hidden"
           >
             <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-[#22c55e]">
@@ -85,7 +98,7 @@ export default function HomeScreen() {
 
           {/* Invoice card */}
           <button
-            onClick={() => { setIntendedDestination('/invoice-generator'); navigate('/login') }}
+            onClick={() => { setIntendedDestination('/invoice-generator'); navigateWithFade('/login') }}
             className="group flex flex-col items-start p-6 rounded-xl bg-[#171717] border border-white/10 hover:border-[#22c55e] transition-all duration-300 hover:shadow-[0_0_20px_rgba(34,197,94,0.15)] hover:-translate-y-1 text-left relative overflow-hidden"
           >
             <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-[#22c55e]">
@@ -120,6 +133,7 @@ export default function HomeScreen() {
         </div>
 
       </main>
+      </div>
     </div>
   )
 }

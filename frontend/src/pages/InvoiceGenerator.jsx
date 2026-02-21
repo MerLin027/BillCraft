@@ -94,33 +94,27 @@ export default function InvoiceGenerator() {
         {/* ── Header ── */}
         <header className="px-8 pt-10 pb-6 flex flex-col md:flex-row md:items-end justify-between gap-6 bg-[#0a0a0a]/80 backdrop-blur-sm sticky top-0 z-10 shrink-0">
           <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-1.5 text-sm text-[#888888] font-medium">
-              <button onClick={() => navigate('/dashboard')} className="hover:text-[#22c55e] transition-colors">Home</button>
-              <span className="material-symbols-outlined text-base">chevron_right</span>
-              <button onClick={() => navigate('/invoice-generator')} className="hover:text-[#22c55e] transition-colors">Invoices</button>
-              <span className="material-symbols-outlined text-base">chevron_right</span>
-              <span className="text-[#f5f5f5]">New Invoice</span>
-            </div>
-            <h2 className="text-3xl font-bold tracking-tight text-[#f5f5f5]">New Invoice</h2>
+            <h2 className="text-3xl font-bold tracking-tight text-[#f5f5f5]">Invoice Generator</h2>
+            <p className="text-slate-400">Generate and send professional invoices.</p>
           </div>
-          <div className="flex flex-wrap gap-3 shrink-0">
-            <button className="flex items-center gap-2 px-4 h-10 rounded-lg bg-[#1a1a1a] border border-[#2a2a2a] text-[#888888] hover:text-[#f5f5f5] hover:border-[#22c55e]/50 transition-all text-sm font-bold shadow-sm">
-              <span className="material-symbols-outlined text-[20px]">save</span>
+          <div className="flex items-center gap-3 shrink-0">
+            <button className="flex items-center gap-1.5 rounded-lg h-9 px-3 border border-[#2a2a2a] text-[#a3a3a3] hover:text-white hover:border-[#3a3a3a] text-sm font-medium transition-colors bg-transparent">
+              <span className="material-symbols-outlined text-lg">save</span>
               <span>Save Draft</span>
             </button>
-            <button className="flex items-center gap-2 px-4 h-10 rounded-lg bg-[#1a1a1a] border border-[#2a2a2a] text-[#888888] hover:text-[#f5f5f5] hover:border-[#22c55e]/50 transition-all text-sm font-bold shadow-sm">
-              <span className="material-symbols-outlined text-[20px]">description</span>
+            <button className="flex items-center gap-1.5 rounded-lg h-9 px-3 border border-[#2a2a2a] text-[#a3a3a3] hover:text-white hover:border-[#3a3a3a] text-sm font-medium transition-colors bg-transparent">
+              <span className="material-symbols-outlined text-lg">description</span>
               <span>Word</span>
             </button>
-            <button className="flex items-center gap-2 px-4 h-10 rounded-lg bg-[#22c55e] hover:bg-green-600 text-white shadow-lg shadow-green-900/20 transition-all text-sm font-bold">
-              <span className="material-symbols-outlined text-[20px]">download</span>
+            <button className="flex items-center justify-center gap-1.5 rounded-lg h-9 px-5 bg-[#22c55e] text-[#0a0a0a] text-sm font-bold hover:bg-green-400 transition-colors shadow-lg shadow-[#22c55e]/20">
+              <span className="material-symbols-outlined text-lg">download</span>
               <span>Download PDF</span>
             </button>
           </div>
         </header>
 
         {/* ── Scrollable body ── */}
-        <main className="flex-1 overflow-y-auto px-8 pb-10 bg-[#0a0a0a]">
+        <main className="flex-1 overflow-y-auto no-scrollbar px-8 pb-10 bg-[#0a0a0a]">
           <div className="max-w-[1000px] mx-auto pb-20">
 
             {/* ── Main card ── */}
