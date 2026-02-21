@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="frontend/src/assets/BillCraft_-_Logo.png" alt="BillCraft Logo" width="120" />
+<img src="frontend/src/assets/BillCraft_Logo.png" alt="BillCraft Logo" width="360" />
 
 # BillCraft
 
