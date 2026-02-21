@@ -2,8 +2,6 @@
 
 <img src="frontend/src/assets/BillCraft_Logo.png" alt="BillCraft Logo" width="360" />
 
-# BillCraft
-
 **Professional invoicing and contract generation platform**
 
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
