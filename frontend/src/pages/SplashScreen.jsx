@@ -2,14 +2,6 @@ import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 
-const STATUS_MESSAGES = [
-  'Initiating workspace....',
-  'Loading configuration....',
-  'Securely connecting to invoice database....',
-  'Fetching client records....',
-  'Finalizing setup....',
-]
-
 const DURATION = 4000 // ms for bar to go 0 → 100%
 const TICK = 16     // ~60fps
 
@@ -18,17 +10,10 @@ export default function SplashScreen() {
   const { user, clients, generations } = useApp()
 
   const [progress, setProgress] = useState(0)
-  const [msgIndex, setMsgIndex] = useState(0)
   const startRef = useRef(null)
   const rafRef = useRef(null)
-  const msgRef = useRef(null)
 
   useEffect(() => {
-    // Cycle status messages every ~220ms
-    msgRef.current = setInterval(() => {
-      setMsgIndex(i => (i + 1) % STATUS_MESSAGES.length)
-    }, 220)
-
     // rAF-driven progress 0 → 100 over DURATION ms with ease-out
     const easeOut = t => 1 - Math.pow(1 - t, 3)
 
@@ -42,7 +27,6 @@ export default function SplashScreen() {
       if (t < 1) {
         rafRef.current = requestAnimationFrame(step)
       } else {
-        clearInterval(msgRef.current)
         // Navigate after a short pause so the user sees 100%
         setTimeout(() => navigate('/home'), 300)
       }
@@ -52,7 +36,6 @@ export default function SplashScreen() {
 
     return () => {
       cancelAnimationFrame(rafRef.current)
-      clearInterval(msgRef.current)
     }
   }, [navigate])
 
@@ -66,7 +49,7 @@ export default function SplashScreen() {
           {/* Logo */}
           <div className="mb-10 text-center relative">
             <div className="absolute -inset-10 bg-[#22c55e]/10 rounded-full blur-3xl opacity-30 pointer-events-none" />
-            <h1 className="font-cursive text-5xl md:text-6xl text-[#22c55e] tracking-wide relative z-10 drop-shadow-sm select-none">
+            <h1 className="font-cursive text-6xl md:text-7xl text-[#22c55e] tracking-wide relative z-10 drop-shadow-sm select-none">
               BillCraft
             </h1>
           </div>
@@ -90,19 +73,14 @@ export default function SplashScreen() {
               </div>
             </div>
 
-            <p className="text-center text-[#a3a3a3] text-[10px] mt-2 font-display italic opacity-80 transition-all duration-200">
-              {STATUS_MESSAGES[msgIndex]}
-            </p>
           </div>
         </div>
 
         {/* Bottom footer */}
         <div className="absolute bottom-8 left-0 w-full flex flex-col items-center gap-2 opacity-50">
-          <div className="flex items-center gap-1 text-[#a3a3a3] text-xs">
-            <span className="material-symbols-outlined text-[14px]">encrypted</span>
-            <span>End-to-end encrypted</span>
+          <div className="flex items-center gap-1 text-[#a3a3a3] text-lg">
+            <span>Made for Freelancers</span>
           </div>
-          <p className="text-[#a3a3a3] text-[10px] font-mono">v1.0.2-beta</p>
         </div>
 
       </main>

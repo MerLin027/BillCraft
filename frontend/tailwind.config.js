@@ -39,6 +39,8 @@ export default {
         "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         "load-progress": "loadProgress 2s ease-out forwards",
         "fade-in-up": "fadeInUp 0.8s ease-out forwards",
+        "page-enter": "fadeInUp 0.22s ease-out forwards",
+        "page-exit": "fadeOutUp 0.18s ease-in forwards",
       },
       keyframes: {
         loadProgress: {
@@ -48,6 +50,10 @@ export default {
         fadeInUp: {
           "0%": { opacity: "0", transform: "translateY(20px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        fadeOutUp: {
+          "0%": { opacity: "1", transform: "translateY(0)" },
+          "100%": { opacity: "0", transform: "translateY(-14px)" },
         },
       },
     },

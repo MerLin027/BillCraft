@@ -3,16 +3,26 @@ import { createContext, useContext, useState } from 'react'
 const AppContext = createContext()
 
 export function AppProvider({ children }) {
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem('billcraft_user')
+      return stored ? JSON.parse(stored) : null
+    } catch {
+      return null
+    }
+  })
   const [clients, setClients] = useState([])
   const [generations, setGenerations] = useState([])
   const [intendedDestination, setIntendedDestination] = useState(null)
 
   const login = () => {
-    setUser({ name: 'Vrushank', email: '23it032@charusat.edu.in' })
+    const userData = { name: 'Vrushank', email: '23it032@charusat.edu.in' }
+    localStorage.setItem('billcraft_user', JSON.stringify(userData))
+    setUser(userData)
   }
 
   const logout = () => {
+    localStorage.removeItem('billcraft_user')
     setUser(null)
   }
 
