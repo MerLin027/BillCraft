@@ -1,89 +1,8 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 import Sidebar from '../components/Sidebar'
+import { STATIC_CLIENTS } from '../data/staticClients'
 
-const STATIC_CLIENTS = [
-  {
-    initials: 'JD',
-    avatarBg: 'bg-purple-500/20',
-    avatarText: 'text-purple-400',
-    avatarBorder: 'border-purple-500/30',
-    name: 'John Doe',
-    email: 'john.doe@acmecorp.com',
-    phone: '+1 (555) 123-4567',
-    business: 'Acme Corp',
-    industry: 'Technology',
-    industryBg: 'bg-blue-900/30',
-    industryText: 'text-blue-300',
-    industryBorder: 'border-blue-800/50',
-    date: 'Oct 24, 2023',
-    img: null,
-  },
-  {
-    initials: 'JS',
-    avatarBg: 'bg-blue-500/20',
-    avatarText: 'text-blue-400',
-    avatarBorder: 'border-blue-500/30',
-    name: 'Jane Smith',
-    email: 'jane.smith@globex.inc',
-    phone: '+1 (555) 987-6543',
-    business: 'Globex Inc.',
-    industry: 'Finance',
-    industryBg: 'bg-green-900/30',
-    industryText: 'text-green-300',
-    industryBorder: 'border-green-800/50',
-    date: 'Oct 22, 2023',
-    img: null,
-  },
-  {
-    initials: null,
-    avatarBg: null,
-    avatarText: null,
-    avatarBorder: null,
-    name: 'Robert Paulson',
-    email: 'bob@soylent.com',
-    phone: '+1 (555) 555-0199',
-    business: 'Soylent Corp',
-    industry: 'Food & Bev',
-    industryBg: 'bg-orange-900/30',
-    industryText: 'text-orange-300',
-    industryBorder: 'border-orange-800/50',
-    date: 'Oct 20, 2023',
-    img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDJ8vTaluEKc9WUPDaBjltZze5cmeIGUHz7yGEuTnqaivMe8CoKTJqCVyX795Pul76IRp7B901q7sfNAtav9qm6zVdJxftPUGR60okgXpypAt8ZXeVB8n4uvL1Ku7QjTMBk9SP-dfDgdNnCxnU2q61pcsb8nr83LyxrhEWgtlUWm6nN4Ra4Tj5uxVIMcerc-0AbDWA-SHT71pWu_I3c7sLsA6Baw3hwwGCYeGfReO-C-mMH8tXQxKUgOowQdu0M-yDDPp8GsMeKAUQ',
-  },
-  {
-    initials: 'PL',
-    avatarBg: 'bg-orange-500/20',
-    avatarText: 'text-orange-400',
-    avatarBorder: 'border-orange-500/30',
-    name: 'Peter Lumburgh',
-    email: 'peter@initech.com',
-    phone: '+1 (555) 321-7654',
-    business: 'Initech',
-    industry: 'Software',
-    industryBg: 'bg-purple-900/30',
-    industryText: 'text-purple-300',
-    industryBorder: 'border-purple-800/50',
-    date: 'Oct 18, 2023',
-    img: null,
-  },
-  {
-    initials: 'AW',
-    avatarBg: 'bg-teal-500/20',
-    avatarText: 'text-teal-400',
-    avatarBorder: 'border-teal-500/30',
-    name: 'Albert Wesker',
-    email: 'a.wesker@umbrella.corp',
-    phone: '+1 (666) 123-6666',
-    business: 'Umbrella Corp',
-    industry: 'Pharmaceuticals',
-    industryBg: 'bg-red-900/30',
-    industryText: 'text-red-300',
-    industryBorder: 'border-red-800/50',
-    date: 'Oct 15, 2023',
-    img: null,
-  },
-]
 
 export default function ClientScreen() {
   const { user, clients, generations } = useApp()
@@ -91,6 +10,17 @@ export default function ClientScreen() {
   const [editOpen,   setEditOpen]   = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [search,     setSearch]     = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const PER_PAGE = 8
+
+  const filteredClients = STATIC_CLIENTS.filter(c =>
+    c.name.toLowerCase().includes(search.toLowerCase())
+  )
+
+  const totalPages   = Math.max(1, Math.ceil(filteredClients.length / PER_PAGE))
+  const pageStart    = Math.min((currentPage - 1) * PER_PAGE + 1, filteredClients.length || 1)
+  const pageEnd      = Math.min(currentPage * PER_PAGE, filteredClients.length)
+  const pagedClients = filteredClients.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE)
 
   return (
     <div className="bg-[#0a0a0a] text-[#f5f5f5] font-display antialiased overflow-hidden flex h-screen w-full flex-row">
@@ -117,7 +47,7 @@ export default function ClientScreen() {
                 placeholder="Search clients..."
                 type="text"
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={e => { setSearch(e.target.value); setCurrentPage(1) }}
               />
             </div>
             <button className="flex items-center gap-2 bg-[#22c55e] hover:bg-green-600 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-lg shadow-[#22c55e]/20 whitespace-nowrap">
@@ -144,51 +74,59 @@ export default function ClientScreen() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#2a2a2a] text-sm">
-                  {STATIC_CLIENTS.map((c, i) => (
-                    <tr key={i} className="group hover:bg-[#22c55e]/5 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          {c.img ? (
-                            <img
-                              className="h-9 w-9 rounded-full object-cover border border-[#2a2a2a]"
-                              alt={c.name}
-                              src={c.img}
-                            />
-                          ) : (
-                            <div className={`h-9 w-9 rounded-full ${c.avatarBg} ${c.avatarText} flex items-center justify-center font-bold text-xs border ${c.avatarBorder}`}>
-                              {c.initials}
-                            </div>
-                          )}
-                          <div className="font-bold text-white">{c.name}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-[#a3a3a3]">{c.email}</td>
-                      <td className="px-6 py-4 text-[#a3a3a3]">{c.phone}</td>
-                      <td className="px-6 py-4 text-white font-medium">{c.business}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${c.industryBg} ${c.industryText} border ${c.industryBorder}`}>
-                          {c.industry}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-[#a3a3a3]">{c.date}</td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            className="px-3 py-1.5 rounded-md bg-transparent border border-[#2a2a2a] text-[#a3a3a3] hover:text-[#22c55e] hover:border-[#22c55e] text-xs font-medium transition-colors"
-                            onClick={() => setEditOpen(true)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="px-3 py-1.5 rounded-md bg-transparent border border-[#2a2a2a] text-[#a3a3a3] hover:text-[#ef4444] hover:border-[#ef4444] text-xs font-medium transition-colors"
-                            onClick={() => setDeleteOpen(true)}
-                          >
-                            Delete
-                          </button>
-                        </div>
+                  {filteredClients.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-16 text-center text-[#888888] text-sm">
+                        No clients found.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    pagedClients.map((c, i) => (
+                      <tr key={i} className="group hover:bg-[#22c55e]/5 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            {c.img ? (
+                              <img
+                                className="h-9 w-9 rounded-full object-cover border border-[#2a2a2a]"
+                                alt={c.name}
+                                src={c.img}
+                              />
+                            ) : (
+                              <div className={`h-9 w-9 rounded-full ${c.avatarBg} ${c.avatarText} flex items-center justify-center font-bold text-xs border ${c.avatarBorder}`}>
+                                {c.initials}
+                              </div>
+                            )}
+                            <div className="font-bold text-white">{c.name}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-[#a3a3a3]">{c.email}</td>
+                        <td className="px-6 py-4 text-[#a3a3a3]">{c.phone}</td>
+                        <td className="px-6 py-4 text-white font-medium">{c.business}</td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${c.industryBg} ${c.industryText} border ${c.industryBorder}`}>
+                            {c.industry}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-[#a3a3a3]">{c.date}</td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              className="px-3 py-1.5 rounded-md bg-transparent border border-[#2a2a2a] text-[#a3a3a3] hover:text-[#22c55e] hover:border-[#22c55e] text-xs font-medium transition-colors"
+                              onClick={() => setEditOpen(true)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="px-3 py-1.5 rounded-md bg-transparent border border-[#2a2a2a] text-[#a3a3a3] hover:text-[#ef4444] hover:border-[#ef4444] text-xs font-medium transition-colors"
+                              onClick={() => setDeleteOpen(true)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -196,17 +134,32 @@ export default function ClientScreen() {
             {/* Pagination */}
             <div className="border-t border-[#2a2a2a] px-6 py-4 flex items-center justify-between bg-[#1a1a1a]">
               <div className="text-xs text-[#a3a3a3]">
-                Showing <span className="text-white font-semibold">1</span> to <span className="text-white font-semibold">5</span> of <span className="text-white font-semibold">24</span> clients
+                Showing <span className="text-white font-semibold">{filteredClients.length === 0 ? 0 : pageStart}</span> to <span className="text-white font-semibold">{pageEnd}</span> of <span className="text-white font-semibold">{filteredClients.length}</span> clients
               </div>
               <div className="flex items-center gap-2">
-                <button className="h-8 w-8 flex items-center justify-center rounded-lg border border-[#2a2a2a] text-[#a3a3a3] hover:bg-[#2a2a2a] hover:text-white transition-colors disabled:opacity-50" disabled>
+                <button
+                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-[#2a2a2a] text-[#a3a3a3] hover:bg-[#2a2a2a] hover:text-white transition-colors disabled:opacity-50"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                >
                   <span className="material-symbols-outlined text-sm">chevron_left</span>
                 </button>
-                <button className="h-8 w-8 flex items-center justify-center rounded-lg bg-[#22c55e] text-white border border-[#22c55e] text-sm font-bold">1</button>
-                <button className="h-8 w-8 flex items-center justify-center rounded-lg border border-[#2a2a2a] text-[#a3a3a3] hover:bg-[#2a2a2a] hover:text-white transition-colors text-sm">2</button>
-                <button className="h-8 w-8 flex items-center justify-center rounded-lg border border-[#2a2a2a] text-[#a3a3a3] hover:bg-[#2a2a2a] hover:text-white transition-colors text-sm">3</button>
-                <span className="text-[#a3a3a3] px-1">...</span>
-                <button className="h-8 w-8 flex items-center justify-center rounded-lg border border-[#2a2a2a] text-[#a3a3a3] hover:bg-[#2a2a2a] hover:text-white transition-colors">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setCurrentPage(p)}
+                    className={`h-8 w-8 flex items-center justify-center rounded-lg text-sm font-bold ${
+                      p === currentPage
+                        ? 'bg-[#22c55e] text-white border border-[#22c55e]'
+                        : 'border border-[#2a2a2a] text-[#a3a3a3] hover:bg-[#2a2a2a] hover:text-white transition-colors'
+                    }`}
+                  >{p}</button>
+                ))}
+                <button
+                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-[#2a2a2a] text-[#a3a3a3] hover:bg-[#2a2a2a] hover:text-white transition-colors disabled:opacity-50"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                >
                   <span className="material-symbols-outlined text-sm">chevron_right</span>
                 </button>
               </div>

@@ -29,6 +29,38 @@ export default function ProfileScreen() {
   const [showCurrent,      setShowCurrent]      = useState(false)
   const [showNew,          setShowNew]          = useState(false)
   const [showConfirm,      setShowConfirm]      = useState(false)
+  const [profileErrors,    setProfileErrors]    = useState({})
+  const [pwdErrors,        setPwdErrors]        = useState({})
+
+  function errInput(err) {
+    return err
+      ? 'w-full h-10 px-3 bg-[#0a0a0a] border border-[#ef4444] rounded-lg text-[#f5f5f5] text-sm placeholder-[#a3a3a3]/50 focus:outline-none focus:ring-2 focus:ring-[#ef4444]/30 focus:border-[#ef4444] transition-all duration-200'
+      : inputClass
+  }
+
+  function handleSaveProfile(e) {
+    e.preventDefault()
+    const errs = {}
+    if (!fullName.trim()) errs.fullName = 'Full name is required.'
+    if (!email.trim()) errs.email = 'Email is required.'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Enter a valid email.'
+    if (Object.keys(errs).length) { setProfileErrors(errs); return }
+    setProfileErrors({})
+    // save logic here
+  }
+
+  function handleChangePassword(e) {
+    e.preventDefault()
+    const errs = {}
+    if (!currentPassword) errs.currentPassword = 'Current password is required.'
+    if (!newPassword) errs.newPassword = 'New password is required.'
+    else if (newPassword.length < 8) errs.newPassword = 'Must be at least 8 characters.'
+    if (!confirmPassword) errs.confirmPassword = 'Please confirm your new password.'
+    else if (newPassword !== confirmPassword) errs.confirmPassword = 'Passwords do not match.'
+    if (Object.keys(errs).length) { setPwdErrors(errs); return }
+    setPwdErrors({})
+    // password update logic here
+  }
 
   const inputClass =
     'w-full h-10 px-3 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-[#f5f5f5] text-sm placeholder-[#a3a3a3]/50 focus:outline-none focus:ring-2 focus:ring-[#22c55e]/40 focus:border-[#22c55e] transition-all duration-200'
@@ -68,44 +100,43 @@ export default function ProfileScreen() {
           </div>
         </div>
 
-        {/* ── Two-column card grid ── */}
-        <div className="flex-1 min-h-0 grid grid-cols-2 gap-4">
+        {/* ── Two-column card row ── */}
+        <div className="shrink-0 grid grid-cols-2 gap-4 items-start">
 
           {/* ── Left: Profile Details ── */}
-          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-6 flex flex-col gap-5 overflow-y-auto min-h-0 no-scrollbar">
-            <div className="flex items-center gap-2 shrink-0">
+          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-6 flex flex-col gap-5">
+            <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-[#22c55e] text-lg">manage_accounts</span>
               <h3 className="text-base font-bold text-[#f5f5f5]">Profile Details</h3>
             </div>
 
-            <form
-              className="flex flex-col gap-4 flex-1"
-              onSubmit={e => e.preventDefault()}
-            >
+            <form className="flex flex-col gap-4" onSubmit={handleSaveProfile}>
               <div className="grid grid-cols-2 gap-4">
                 {/* Full Name */}
                 <div className="flex flex-col gap-1.5">
                   <label className={labelClass} htmlFor="fullName">Full Name</label>
                   <input
-                    className={inputClass}
+                    className={errInput(profileErrors.fullName)}
                     id="fullName"
                     type="text"
                     placeholder="John Doe"
                     value={fullName}
-                    onChange={e => setFullName(e.target.value)}
+                    onChange={e => { setFullName(e.target.value); setProfileErrors(p => ({ ...p, fullName: undefined })) }}
                   />
+                  {profileErrors.fullName && <p className="text-xs text-[#ef4444]">{profileErrors.fullName}</p>}
                 </div>
                 {/* Email */}
                 <div className="flex flex-col gap-1.5">
                   <label className={labelClass} htmlFor="profEmail">Email Address</label>
                   <input
-                    className={inputClass}
+                    className={errInput(profileErrors.email)}
                     id="profEmail"
                     type="email"
                     placeholder="name@example.com"
                     value={email}
-                    onChange={e => setEmail(e.target.value)}
+                    onChange={e => { setEmail(e.target.value); setProfileErrors(p => ({ ...p, email: undefined })) }}
                   />
+                  {profileErrors.email && <p className="text-xs text-[#ef4444]">{profileErrors.email}</p>}
                 </div>
                 {/* Phone */}
                 <div className="flex flex-col gap-1.5">
@@ -144,102 +175,85 @@ export default function ProfileScreen() {
             </form>
           </div>
 
-          {/* ── Right column: Password + Danger Zone ── */}
-          <div className="flex flex-col gap-4 min-h-0 overflow-y-auto no-scrollbar">
-
-            {/* Change Password */}
-            <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-6 flex flex-col gap-4 shrink-0">
-              <div className="flex items-center justify-between gap-2 shrink-0">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#22c55e] text-lg">lock</span>
-                  <h3 className="text-base font-bold text-[#f5f5f5]">Change Password</h3>
-                </div>
-                <button
-                  type="submit"
-                  form="change-password-form"
-                  className="h-9 px-4 rounded-lg bg-[#22c55e] text-white font-bold text-sm hover:bg-[#22c55e]/90 focus:ring-4 focus:ring-[#22c55e]/30 transition-all duration-200 shadow-lg shadow-[#22c55e]/20"
-                >
-                  Update Password
-                </button>
+          {/* ── Right column: Change Password only ── */}
+          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-6 flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#22c55e] text-lg">lock</span>
+                <h3 className="text-base font-bold text-[#f5f5f5]">Change Password</h3>
               </div>
-
-              <form id="change-password-form" className="flex flex-col gap-3" onSubmit={e => e.preventDefault()}>
-                {/* Current Password */}
-                <div className="flex flex-col gap-1.5">
-                  <label className={labelClass} htmlFor="currentPwd">Current Password</label>
-                  <div className="relative">
-                    <input
-                      className={inputClass}
-                      id="currentPwd"
-                      type={showCurrent ? 'text' : 'password'}
-                      placeholder="Enter current password"
-                      value={currentPassword}
-                      onChange={e => setCurrentPassword(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowCurrent(v => !v)}
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#a3a3a3] hover:text-[#f5f5f5]"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">
-                        {showCurrent ? 'visibility' : 'visibility_off'}
-                      </span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* New Password */}
-                <div className="flex flex-col gap-1.5">
-                  <label className={labelClass} htmlFor="newPwd">New Password</label>
-                  <div className="relative">
-                    <input
-                      className={inputClass}
-                      id="newPwd"
-                      type={showNew ? 'text' : 'password'}
-                      placeholder="Enter new password"
-                      value={newPassword}
-                      onChange={e => setNewPassword(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNew(v => !v)}
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#a3a3a3] hover:text-[#f5f5f5]"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">
-                        {showNew ? 'visibility' : 'visibility_off'}
-                      </span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Confirm New Password */}
-                <div className="flex flex-col gap-1.5">
-                  <label className={labelClass} htmlFor="confirmPwd">Confirm New Password</label>
-                  <div className="relative">
-                    <input
-                      className={inputClass}
-                      id="confirmPwd"
-                      type={showConfirm ? 'text' : 'password'}
-                      placeholder="Re-enter new password"
-                      value={confirmPassword}
-                      onChange={e => setConfirmPassword(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirm(v => !v)}
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#a3a3a3] hover:text-[#f5f5f5]"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">
-                        {showConfirm ? 'visibility' : 'visibility_off'}
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              </form>
+              <button
+                type="submit"
+                form="change-password-form"
+                className="h-9 px-4 rounded-lg bg-[#22c55e] text-white font-bold text-sm hover:bg-[#22c55e]/90 focus:ring-4 focus:ring-[#22c55e]/30 transition-all duration-200 shadow-lg shadow-[#22c55e]/20"
+              >
+                Update Password
+              </button>
             </div>
 
-            {/* Danger Zone */}
-            <div className="bg-[#1a1a1a] border border-[#ef4444]/30 rounded-xl p-6 flex flex-col gap-3 shrink-0">
+            <form id="change-password-form" className="flex flex-col gap-3" onSubmit={handleChangePassword}>
+              {/* Current Password */}
+              <div className="flex flex-col gap-1.5">
+                <label className={labelClass} htmlFor="currentPwd">Current Password</label>
+                <div className="relative">
+                  <input
+                    className={errInput(pwdErrors.currentPassword)}
+                    id="currentPwd"
+                    type={showCurrent ? 'text' : 'password'}
+                    placeholder="Enter current password"
+                    value={currentPassword}
+                    onChange={e => { setCurrentPassword(e.target.value); setPwdErrors(p => ({ ...p, currentPassword: undefined })) }}
+                  />
+                  <button type="button" onClick={() => setShowCurrent(v => !v)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#a3a3a3] hover:text-[#f5f5f5]">
+                    <span className="material-symbols-outlined text-[18px]">{showCurrent ? 'visibility' : 'visibility_off'}</span>
+                  </button>
+                </div>
+                {pwdErrors.currentPassword && <p className="text-xs text-[#ef4444]">{pwdErrors.currentPassword}</p>}
+              </div>
+
+              {/* New Password */}
+              <div className="flex flex-col gap-1.5">
+                <label className={labelClass} htmlFor="newPwd">New Password</label>
+                <div className="relative">
+                  <input
+                    className={errInput(pwdErrors.newPassword)}
+                    id="newPwd"
+                    type={showNew ? 'text' : 'password'}
+                    placeholder="Min. 8 characters"
+                    value={newPassword}
+                    onChange={e => { setNewPassword(e.target.value); setPwdErrors(p => ({ ...p, newPassword: undefined })) }}
+                  />
+                  <button type="button" onClick={() => setShowNew(v => !v)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#a3a3a3] hover:text-[#f5f5f5]">
+                    <span className="material-symbols-outlined text-[18px]">{showNew ? 'visibility' : 'visibility_off'}</span>
+                  </button>
+                </div>
+                {pwdErrors.newPassword && <p className="text-xs text-[#ef4444]">{pwdErrors.newPassword}</p>}
+              </div>
+
+              {/* Confirm New Password */}
+              <div className="flex flex-col gap-1.5">
+                <label className={labelClass} htmlFor="confirmPwd">Confirm New Password</label>
+                <div className="relative">
+                  <input
+                    className={errInput(pwdErrors.confirmPassword)}
+                    id="confirmPwd"
+                    type={showConfirm ? 'text' : 'password'}
+                    placeholder="Re-enter new password"
+                    value={confirmPassword}
+                    onChange={e => { setConfirmPassword(e.target.value); setPwdErrors(p => ({ ...p, confirmPassword: undefined })) }}
+                  />
+                  <button type="button" onClick={() => setShowConfirm(v => !v)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#a3a3a3] hover:text-[#f5f5f5]">
+                    <span className="material-symbols-outlined text-[18px]">{showConfirm ? 'visibility' : 'visibility_off'}</span>
+                  </button>
+                </div>
+                {pwdErrors.confirmPassword && <p className="text-xs text-[#ef4444]">{pwdErrors.confirmPassword}</p>}
+              </div>
+            </form>
+          </div>
+
+          {/* ── Danger Zone — spans both columns ── */}
+          <div className="col-span-2 bg-[#1a1a1a] border border-[#ef4444]/30 rounded-xl px-6 py-3 flex items-center justify-between gap-6">
+            <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[#ef4444] text-lg">warning</span>
                 <h3 className="text-base font-bold text-[#ef4444]">Danger Zone</h3>
@@ -247,18 +261,18 @@ export default function ProfileScreen() {
               <p className="text-sm text-slate-400 leading-relaxed">
                 Permanently delete your account and all associated data. This action cannot be undone.
               </p>
-              <div>
-                <button
-                  type="button"
-                  className="h-10 px-6 rounded-lg bg-[#ef4444]/10 border border-[#ef4444]/40 text-[#ef4444] font-bold text-sm hover:bg-[#ef4444] hover:text-white transition-all duration-200"
-                  onClick={() => {}}
-                >
-                  Delete Account
-                </button>
-              </div>
             </div>
-
+            <div className="shrink-0">
+              <button
+                type="button"
+                className="h-10 px-6 rounded-lg bg-[#ef4444]/10 border border-[#ef4444]/40 text-[#ef4444] font-bold text-sm hover:bg-[#ef4444] hover:text-white transition-all duration-200"
+                onClick={() => {}}
+              >
+                Delete Account
+              </button>
+            </div>
           </div>
+
         </div>
 
       </main>

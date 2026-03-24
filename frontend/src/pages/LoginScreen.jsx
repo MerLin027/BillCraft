@@ -12,6 +12,7 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false)
   const [exiting, setExiting] = useState(false)
   const [visible, setVisible] = useState(false)
+  const [errors, setErrors] = useState({})
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 10)
@@ -30,6 +31,12 @@ export default function LoginScreen() {
 
   function handleLogin(e) {
     e.preventDefault()
+    const errs = {}
+    if (!email.trim()) errs.email = 'Email is required.'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Enter a valid email address.'
+    if (!password) errs.password = 'Password is required.'
+    if (Object.keys(errs).length) { setErrors(errs); return }
+    setErrors({})
     login()
     const destination = intendedDestination || '/dashboard'
     setIntendedDestination(null)
@@ -40,10 +47,6 @@ export default function LoginScreen() {
     <div className="bg-[#0a0a0a] h-screen overflow-hidden">
       <div
         className="text-[#f5f5f5] font-display h-full flex flex-col antialiased"
-        style={{
-          opacity: visible ? 1 : 0,
-          transition: 'opacity 220ms ease-in-out',
-        }}
       >
       <div className="flex flex-col lg:flex-row h-full w-full overflow-hidden">
 
@@ -94,7 +97,7 @@ export default function LoginScreen() {
         <div
           className="flex flex-1 flex-col items-center justify-center p-4 sm:p-8 lg:p-12 bg-[#0a0a0a] relative"
           style={{
-            opacity: exiting ? 0 : 1,
+            opacity: exiting ? 0 : (visible ? 1 : 0),
             transform: exiting ? 'translateX(20px)' : 'translateX(0)',
             transition: 'opacity 300ms ease-in-out, transform 300ms ease-in-out',
           }}
@@ -127,17 +130,18 @@ export default function LoginScreen() {
                 <label className="text-sm font-semibold text-[#f5f5f5]" htmlFor="email">Email Address</label>
                 <div className="relative">
                   <input
-                    className="w-full h-12 px-4 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-[#f5f5f5] placeholder-[#a3a3a3]/50 focus:outline-none focus:ring-2 focus:ring-[#22c55e]/50 focus:border-[#22c55e] transition-all duration-200"
+                    className={`w-full h-12 px-4 bg-[#0a0a0a] border rounded-lg text-[#f5f5f5] placeholder-[#a3a3a3]/50 focus:outline-none focus:ring-2 transition-all duration-200 ${errors.email ? 'border-[#ef4444] focus:ring-[#ef4444]/30 focus:border-[#ef4444]' : 'border-[#2a2a2a] focus:ring-[#22c55e]/50 focus:border-[#22c55e]'}`}
                     id="email"
                     placeholder="name@example.com"
                     type="email"
                     value={email}
-                    onChange={e => setEmail(e.target.value)}
+                    onChange={e => { setEmail(e.target.value); setErrors(p => ({ ...p, email: undefined })) }}
                   />
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-[#a3a3a3]">
                     <span className="material-symbols-outlined text-[20px]">mail</span>
                   </div>
                 </div>
+                {errors.email && <p className="text-xs text-[#ef4444] mt-1">{errors.email}</p>}
               </div>
 
               {/* Password */}
@@ -153,12 +157,12 @@ export default function LoginScreen() {
                 </div>
                 <div className="relative group">
                   <input
-                    className="w-full h-12 px-4 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-[#f5f5f5] placeholder-[#a3a3a3]/50 focus:outline-none focus:ring-2 focus:ring-[#22c55e]/50 focus:border-[#22c55e] transition-all duration-200"
+                    className={`w-full h-12 px-4 bg-[#0a0a0a] border rounded-lg text-[#f5f5f5] placeholder-[#a3a3a3]/50 focus:outline-none focus:ring-2 transition-all duration-200 ${errors.password ? 'border-[#ef4444] focus:ring-[#ef4444]/30 focus:border-[#ef4444]' : 'border-[#2a2a2a] focus:ring-[#22c55e]/50 focus:border-[#22c55e]'}`}
                     id="password"
                     placeholder="Enter your password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
-                    onChange={e => setPassword(e.target.value)}
+                    onChange={e => { setPassword(e.target.value); setErrors(p => ({ ...p, password: undefined })) }}
                   />
                   <button
                     type="button"
@@ -170,17 +174,30 @@ export default function LoginScreen() {
                     </span>
                   </button>
                 </div>
+                {errors.password && <p className="text-xs text-[#ef4444] mt-1">{errors.password}</p>}
               </div>
 
               {/* Remember me */}
               <div className="flex items-center gap-2">
-                <input
-                  className="w-4 h-4 rounded border-[#2a2a2a] text-[#22c55e] focus:ring-[#22c55e] bg-[#0a0a0a]"
-                  id="remember"
-                  type="checkbox"
-                  checked={remember}
-                  onChange={e => setRemember(e.target.checked)}
-                />
+                <label className="relative flex items-center cursor-pointer" htmlFor="remember">
+                  <input
+                    className="sr-only peer"
+                    id="remember"
+                    type="checkbox"
+                    checked={remember}
+                    onChange={e => setRemember(e.target.checked)}
+                  />
+                  <span
+                    className="w-4 h-4 rounded border-2 border-[#22c55e] bg-[#0a0a0a] flex items-center justify-center transition-colors duration-150
+                      peer-checked:bg-[#22c55e] peer-focus-visible:ring-2 peer-focus-visible:ring-[#22c55e]/50"
+                  >
+                    {remember && (
+                      <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 10" fill="none">
+                        <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </span>
+                </label>
                 <label className="text-sm font-medium text-[#a3a3a3] select-none" htmlFor="remember">
                   Remember for 30 days
                 </label>

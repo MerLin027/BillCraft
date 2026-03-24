@@ -14,6 +14,7 @@ export default function SignUpScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [exiting, setExiting] = useState(false)
   const [visible, setVisible] = useState(false)
+  const [errors, setErrors] = useState({})
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 10)
@@ -32,6 +33,16 @@ export default function SignUpScreen() {
 
   function handleSignUp(e) {
     e.preventDefault()
+    const errs = {}
+    if (!fullName.trim()) errs.fullName = 'Full name is required.'
+    if (!email.trim()) errs.email = 'Email is required.'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Enter a valid email address.'
+    if (!password) errs.password = 'Password is required.'
+    else if (password.length < 8) errs.password = 'Password must be at least 8 characters.'
+    if (!confirmPassword) errs.confirmPassword = 'Please confirm your password.'
+    else if (password !== confirmPassword) errs.confirmPassword = 'Passwords do not match.'
+    if (Object.keys(errs).length) { setErrors(errs); return }
+    setErrors({})
     navigateWithFade('/login')
   }
 
@@ -39,10 +50,6 @@ export default function SignUpScreen() {
     <div className="bg-[#0a0a0a] h-screen overflow-hidden">
       <div
         className="text-[#f5f5f5] font-display h-full flex flex-col antialiased"
-        style={{
-          opacity: visible ? 1 : 0,
-          transition: 'opacity 220ms ease-in-out',
-        }}
       >
       <div className="flex flex-col lg:flex-row h-full w-full overflow-hidden">
 
@@ -93,7 +100,7 @@ export default function SignUpScreen() {
         <div
           className="flex flex-1 flex-col items-center justify-center p-4 sm:p-8 lg:p-12 bg-[#0a0a0a] relative"
           style={{
-            opacity: exiting ? 0 : 1,
+            opacity: exiting ? 0 : (visible ? 1 : 0),
             transform: exiting ? 'translateX(20px)' : 'translateX(0)',
             transition: 'opacity 300ms ease-in-out, transform 300ms ease-in-out',
           }}
@@ -126,17 +133,18 @@ export default function SignUpScreen() {
                 <label className="text-sm font-semibold text-[#f5f5f5]" htmlFor="fullName">Full Name</label>
                 <div className="relative">
                   <input
-                    className="w-full h-12 px-4 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-[#f5f5f5] placeholder-[#a3a3a3]/50 focus:outline-none focus:ring-2 focus:ring-[#22c55e]/50 focus:border-[#22c55e] transition-all duration-200"
+                    className={`w-full h-12 px-4 bg-[#0a0a0a] border rounded-lg text-[#f5f5f5] placeholder-[#a3a3a3]/50 focus:outline-none focus:ring-2 transition-all duration-200 ${errors.fullName ? 'border-[#ef4444] focus:ring-[#ef4444]/30 focus:border-[#ef4444]' : 'border-[#2a2a2a] focus:ring-[#22c55e]/50 focus:border-[#22c55e]'}`}
                     id="fullName"
                     placeholder="John Doe"
                     type="text"
                     value={fullName}
-                    onChange={e => setFullName(e.target.value)}
+                    onChange={e => { setFullName(e.target.value); setErrors(p => ({ ...p, fullName: undefined })) }}
                   />
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-[#a3a3a3]">
                     <span className="material-symbols-outlined text-[20px]">person</span>
                   </div>
                 </div>
+                {errors.fullName && <p className="text-xs text-[#ef4444] mt-1">{errors.fullName}</p>}
               </div>
 
               {/* Email */}
@@ -144,17 +152,18 @@ export default function SignUpScreen() {
                 <label className="text-sm font-semibold text-[#f5f5f5]" htmlFor="email">Email Address</label>
                 <div className="relative">
                   <input
-                    className="w-full h-12 px-4 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-[#f5f5f5] placeholder-[#a3a3a3]/50 focus:outline-none focus:ring-2 focus:ring-[#22c55e]/50 focus:border-[#22c55e] transition-all duration-200"
+                    className={`w-full h-12 px-4 bg-[#0a0a0a] border rounded-lg text-[#f5f5f5] placeholder-[#a3a3a3]/50 focus:outline-none focus:ring-2 transition-all duration-200 ${errors.email ? 'border-[#ef4444] focus:ring-[#ef4444]/30 focus:border-[#ef4444]' : 'border-[#2a2a2a] focus:ring-[#22c55e]/50 focus:border-[#22c55e]'}`}
                     id="email"
                     placeholder="name@example.com"
                     type="email"
                     value={email}
-                    onChange={e => setEmail(e.target.value)}
+                    onChange={e => { setEmail(e.target.value); setErrors(p => ({ ...p, email: undefined })) }}
                   />
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-[#a3a3a3]">
                     <span className="material-symbols-outlined text-[20px]">mail</span>
                   </div>
                 </div>
+                {errors.email && <p className="text-xs text-[#ef4444] mt-1">{errors.email}</p>}
               </div>
 
               {/* Password */}
@@ -162,12 +171,12 @@ export default function SignUpScreen() {
                 <label className="text-sm font-semibold text-[#f5f5f5]" htmlFor="password">Password</label>
                 <div className="relative group">
                   <input
-                    className="w-full h-12 px-4 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-[#f5f5f5] placeholder-[#a3a3a3]/50 focus:outline-none focus:ring-2 focus:ring-[#22c55e]/50 focus:border-[#22c55e] transition-all duration-200"
+                    className={`w-full h-12 px-4 bg-[#0a0a0a] border rounded-lg text-[#f5f5f5] placeholder-[#a3a3a3]/50 focus:outline-none focus:ring-2 transition-all duration-200 ${errors.password ? 'border-[#ef4444] focus:ring-[#ef4444]/30 focus:border-[#ef4444]' : 'border-[#2a2a2a] focus:ring-[#22c55e]/50 focus:border-[#22c55e]'}`}
                     id="password"
-                    placeholder="Enter your password"
+                    placeholder="Min. 8 characters"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
-                    onChange={e => setPassword(e.target.value)}
+                    onChange={e => { setPassword(e.target.value); setErrors(p => ({ ...p, password: undefined })) }}
                   />
                   <button
                     type="button"
@@ -179,6 +188,7 @@ export default function SignUpScreen() {
                     </span>
                   </button>
                 </div>
+                {errors.password && <p className="text-xs text-[#ef4444] mt-1">{errors.password}</p>}
               </div>
 
               {/* Confirm Password */}
@@ -186,12 +196,12 @@ export default function SignUpScreen() {
                 <label className="text-sm font-semibold text-[#f5f5f5]" htmlFor="confirmPassword">Confirm Password</label>
                 <div className="relative group">
                   <input
-                    className="w-full h-12 px-4 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-[#f5f5f5] placeholder-[#a3a3a3]/50 focus:outline-none focus:ring-2 focus:ring-[#22c55e]/50 focus:border-[#22c55e] transition-all duration-200"
+                    className={`w-full h-12 px-4 bg-[#0a0a0a] border rounded-lg text-[#f5f5f5] placeholder-[#a3a3a3]/50 focus:outline-none focus:ring-2 transition-all duration-200 ${errors.confirmPassword ? 'border-[#ef4444] focus:ring-[#ef4444]/30 focus:border-[#ef4444]' : 'border-[#2a2a2a] focus:ring-[#22c55e]/50 focus:border-[#22c55e]'}`}
                     id="confirmPassword"
                     placeholder="Re-enter your password"
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
-                    onChange={e => setConfirmPassword(e.target.value)}
+                    onChange={e => { setConfirmPassword(e.target.value); setErrors(p => ({ ...p, confirmPassword: undefined })) }}
                   />
                   <button
                     type="button"
@@ -203,6 +213,7 @@ export default function SignUpScreen() {
                     </span>
                   </button>
                 </div>
+                {errors.confirmPassword && <p className="text-xs text-[#ef4444] mt-1">{errors.confirmPassword}</p>}
               </div>
 
               {/* Submit */}

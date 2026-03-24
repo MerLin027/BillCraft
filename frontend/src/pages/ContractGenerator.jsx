@@ -91,10 +91,50 @@ const STATIC_CONTRACTS = [
   },
 ]
 
-const STATUS_STYLES = {
-  Draft:  { bg: 'bg-[#2a2a2a]',       text: 'text-[#a3a3a3]',  border: 'border-[#3a3a3a]',      select: '#a3a3a3' },
-  Sent:   { bg: 'bg-yellow-900/30',   text: 'text-yellow-300', border: 'border-yellow-800/50',   select: '#fde047' },
-  Signed: { bg: 'bg-green-900/30',    text: 'text-green-300',  border: 'border-green-800/50',    select: '#86efac' },
+const STATUS_CONFIG = {
+  Draft:  { label: 'Draft',  pill: 'bg-[#2a2a2a] text-[#a3a3a3] border border-[#3a3a3a]',              text: 'text-[#a3a3a3]' },
+  Sent:   { label: 'Sent',   pill: 'bg-amber-500/15 text-amber-400 border border-amber-500/25',        text: 'text-amber-400' },
+  Signed: { label: 'Signed', pill: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25', text: 'text-emerald-400' },
+}
+
+function ContractStatusBadge({ status, onChange }) {
+  const [open, setOpen] = useState(false)
+  const cfg      = STATUS_CONFIG[status] ?? STATUS_CONFIG.Draft
+  const textColor = cfg.text
+  return (
+    <div className="relative inline-block" onBlur={() => setOpen(false)} tabIndex={-1}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-colors ${cfg.pill}`}
+      >
+        <span>{cfg.label}</span>
+        <span className={`material-symbols-outlined leading-none ${textColor}`} style={{ fontSize: '12px' }}>expand_more</span>
+      </button>
+      {open && (
+        <div
+          className="absolute left-0 top-full mt-1 z-50 min-w-[110px] bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg shadow-lg py-1 overflow-hidden"
+          onMouseDown={e => e.preventDefault()}
+        >
+          {Object.keys(STATUS_CONFIG).map(opt => {
+            const oc = STATUS_CONFIG[opt]
+            return (
+              <button
+                key={opt}
+                type="button"
+                className={`w-full text-left px-3 py-1.5 text-xs font-medium transition-colors hover:bg-[#2a2a2a] flex items-center gap-2 ${oc.text}`}
+                onClick={() => { onChange(opt); setOpen(false) }}
+              >
+                {opt === status && <span className="material-symbols-outlined text-[12px]">check</span>}
+                {opt !== status && <span className="w-[12px]" />}
+                {oc.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function ContractGenerator() {
@@ -106,6 +146,11 @@ export default function ContractGenerator() {
   const [search,     setSearch]     = useState('')
   const [statuses,   setStatuses]   = useState(() => STATIC_CONTRACTS.map(c => c.status))
   const [fading,     setFading]     = useState(false)
+
+  const filteredContracts = STATIC_CONTRACTS.filter(c => {
+    const q = search.toLowerCase()
+    return c.client.toLowerCase().includes(q) || c.title.toLowerCase().includes(q)
+  })
 
   function setStatus(i, val) {
     setStatuses(prev => prev.map((s, idx) => idx === i ? val : s))
@@ -186,11 +231,16 @@ export default function ContractGenerator() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#2a2a2a] text-sm">
-                  {STATIC_CONTRACTS.map((c, i) => {
-                    const s = statuses[i]
-                    const ss = STATUS_STYLES[s] ?? STATUS_STYLES.Draft
+                  {filteredContracts.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-16 text-center text-[#888888] text-sm">No contracts found.</td>
+                    </tr>
+                  ) : null}
+                  {filteredContracts.map((c) => {
+                    const origIdx = STATIC_CONTRACTS.indexOf(c)
+                    const s = statuses[origIdx]
                     return (
-                    <tr key={i} className="group hover:bg-[#22c55e]/5 transition-colors">
+                    <tr key={origIdx} className="group hover:bg-[#22c55e]/5 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="h-9 w-9 rounded-lg bg-[#22c55e]/10 border border-[#22c55e]/20 flex items-center justify-center shrink-0">
@@ -213,16 +263,10 @@ export default function ContractGenerator() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <select
-                          value={s}
-                          onChange={e => setStatus(i, e.target.value)}
-                          className={`px-2.5 py-0.5 rounded-full text-xs font-medium border bg-transparent cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#22c55e] transition-colors ${ss.bg} ${ss.text} ${ss.border}`}
-                          style={{ colorScheme: 'dark' }}
-                        >
-                          {Object.keys(STATUS_STYLES).map(opt => (
-                            <option key={opt} value={opt} style={{ background: '#1a1a1a', color: STATUS_STYLES[opt].select }}>{opt}</option>
-                          ))}
-                        </select>
+                        <ContractStatusBadge
+                          status={s}
+                          onChange={val => setStatus(origIdx, val)}
+                        />
                       </td>
                       <td className="px-6 py-4 text-[#a3a3a3]">{c.date}</td>
                       <td className="px-6 py-4 text-right">

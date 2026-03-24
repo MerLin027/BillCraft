@@ -2,18 +2,37 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import Sidebar from '../components/Sidebar'
-
-const SAMPLE_CLIENTS = [
-  { name: 'Sarah Jenkins', email: 'sarah.j@techflow.io', company: 'TechFlow Solutions',   phone: '+1 (555) 123-4567', type: 'Software Development', address: '452 Innovation Drive, Suite 200', city: 'San Francisco, CA', zip: '94107' },
-  { name: 'Sarah Connor',  email: 'sarah.c@skynet.com',  company: 'Skynet Systems',        phone: '+1 (555) 000-0000', type: 'Technology',            address: '1997 Judgment Day Ave',        city: 'Los Angeles, CA',  zip: '90001' },
-]
+import { STATIC_CLIENTS } from '../data/staticClients'
 
 const inputUnderline =
   'w-full bg-transparent border-0 border-b border-[#2a2a2a] focus:border-[#22c55e] px-0 py-2 text-[#f5f5f5] placeholder-[#888888] focus:ring-0 outline-none transition-colors text-sm'
 
 export default function InvoiceGenerator() {
   const navigate = useNavigate()
-  const { user } = useApp()
+  const { user, addGeneration, clients } = useApp()
+
+  // Map AppContext (user-added) clients to invoice shape
+  const contextClients = clients.map(c => ({
+    name:    c.name    || '',
+    email:   c.email   || '',
+    company: c.business || c.name || '',
+    phone:   c.phone   || '',
+    type:    c.industry || '',
+    address: '', city: '', zip: '',
+  }))
+
+  // Map shared STATIC_CLIENTS (demo clients from Clients page) to invoice shape
+  const staticMapped = STATIC_CLIENTS.map(c => ({
+    name:    c.name,
+    email:   c.email,
+    company: c.business || '',
+    phone:   c.phone    || '',
+    type:    c.industry || '',
+    address: '', city: '', zip: '',
+  }))
+
+  // Context clients first, then static demo clients
+  const allClients = [...contextClients, ...staticMapped]
 
   // Invoice meta
   const [dateIssued, setDateIssued] = useState('2023-10-27')
@@ -27,21 +46,19 @@ export default function InvoiceGenerator() {
   const [fromZip,    setFromZip]    = useState('')
 
   // Bill To
-  const [clientSearch, setClientSearch] = useState('sarah')
-  const [showDropdown, setShowDropdown] = useState(true)
-  const [toCompany,    setToCompany]    = useState('TechFlow Solutions')
-  const [toPhone,      setToPhone]      = useState('+1 (555) 123-4567')
-  const [toType,       setToType]       = useState('Software Development')
-  const [toStreet,     setToStreet]     = useState('452 Innovation Drive, Suite 200')
-  const [toCity,       setToCity]       = useState('San Francisco, CA')
-  const [toZip,        setToZip]        = useState('94107')
+  const [clientSearch, setClientSearch] = useState('')
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [toCompany,    setToCompany]    = useState('')
+  const [toPhone,      setToPhone]      = useState('')
+  const [toType,       setToType]       = useState('')
+  const [toStreet,     setToStreet]     = useState('')
+  const [toCity,       setToCity]       = useState('')
+  const [toZip,        setToZip]        = useState('')
   const searchRef = useRef(null)
 
   // Line items
   const [items, setItems] = useState([
-    { desc: 'Web Design Services - Homepage', rate: 150.00, qty: 8 },
-    { desc: 'Mobile Optimization',            rate: 120.00, qty: 4 },
-    { desc: '',                               rate: '',     qty: '' },
+    { desc: '', rate: '', qty: '' },
   ])
 
   // Notes & tax
@@ -59,6 +76,40 @@ export default function InvoiceGenerator() {
   }
   function removeItem(i) { setItems(prev => prev.filter((_, idx) => idx !== i)) }
   function addItem()     { setItems(prev => [...prev, { desc: '', rate: '', qty: '' }]) }
+
+  // Validation
+  const [invoiceErrors, setInvoiceErrors] = useState([])
+  const [savedToast,    setSavedToast]    = useState(false)
+
+  function validateInvoice() {
+    const errs = []
+    if (!clientSearch.trim()) errs.push('Client name / email is required.')
+    if (!items.some(it => it.desc.trim())) errs.push('At least one line item description is required.')
+    if (!dateDue) errs.push('Due date is required.')
+    setInvoiceErrors(errs)
+    return errs.length === 0
+  }
+
+  function handleSaveDraft() {
+    if (!clientSearch.trim() && !toCompany.trim()) {
+      setInvoiceErrors(['Client name / email is required to save a draft.'])
+      return
+    }
+    setInvoiceErrors([])
+    const title = toCompany.trim() || clientSearch.trim() || 'Untitled Invoice'
+    addGeneration({
+      title,
+      subtitle: toType || 'Invoice',
+      type: 'Invoice',
+      typeIcon: 'receipt_long',
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      dateRed: false,
+      amount: fmt(totalDue),
+      statusOptions: ['paid', 'pending', 'overdue'],
+    })
+    setSavedToast(true)
+    setTimeout(() => setSavedToast(false), 2000)
+  }
 
   function selectClient(c) {
     setClientSearch(c.email)
@@ -79,7 +130,7 @@ export default function InvoiceGenerator() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const filteredClients = SAMPLE_CLIENTS.filter(c =>
+  const filteredClients = allClients.filter(c =>
     clientSearch === '' ? false :
     c.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
     c.email.toLowerCase().includes(clientSearch.toLowerCase())
@@ -98,20 +149,44 @@ export default function InvoiceGenerator() {
             <p className="text-slate-400">Generate and send professional invoices.</p>
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <button className="flex items-center gap-1.5 rounded-lg h-9 px-3 border border-[#2a2a2a] text-[#a3a3a3] hover:text-white hover:border-[#3a3a3a] text-sm font-medium transition-colors bg-transparent">
+            <button
+              className="flex items-center gap-1.5 rounded-lg h-9 px-3 border border-[#2a2a2a] text-[#a3a3a3] hover:text-white hover:border-[#3a3a3a] text-sm font-medium transition-colors bg-transparent"
+              onClick={handleSaveDraft}
+            >
               <span className="material-symbols-outlined text-lg">save</span>
               <span>Save Draft</span>
             </button>
-            <button className="flex items-center gap-1.5 rounded-lg h-9 px-3 border border-[#2a2a2a] text-[#a3a3a3] hover:text-white hover:border-[#3a3a3a] text-sm font-medium transition-colors bg-transparent">
+            <button
+              className="flex items-center gap-1.5 rounded-lg h-9 px-5 bg-[#22c55e] text-[#0a0a0a] text-sm font-bold hover:bg-green-400 transition-colors shadow-lg shadow-[#22c55e]/20"
+              onClick={() => validateInvoice()}
+            >
               <span className="material-symbols-outlined text-lg">description</span>
-              <span>Word</span>
+              <span>Save as Word</span>
             </button>
-            <button className="flex items-center justify-center gap-1.5 rounded-lg h-9 px-5 bg-[#22c55e] text-[#0a0a0a] text-sm font-bold hover:bg-green-400 transition-colors shadow-lg shadow-[#22c55e]/20">
+            <button
+              className="flex items-center justify-center gap-1.5 rounded-lg h-9 px-5 bg-[#22c55e] text-[#0a0a0a] text-sm font-bold hover:bg-green-400 transition-colors shadow-lg shadow-[#22c55e]/20"
+              onClick={() => validateInvoice()}
+            >
               <span className="material-symbols-outlined text-lg">download</span>
-              <span>Download PDF</span>
+              <span>Download as PDF</span>
             </button>
           </div>
         </header>
+        {invoiceErrors.length > 0 && (
+          <div className="mx-8 mt-0 mb-2 flex flex-col gap-1 bg-[#ef4444]/10 border border-[#ef4444]/30 rounded-lg px-4 py-2.5">
+            {invoiceErrors.map((e, i) => (
+              <p key={i} className="text-xs text-[#ef4444] flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[14px]">error</span>{e}
+              </p>
+            ))}
+          </div>
+        )}
+        {savedToast && (
+          <div className="mx-8 mt-0 mb-2 flex items-center gap-2 bg-[#22c55e]/10 border border-[#22c55e]/30 rounded-lg px-4 py-2.5">
+            <span className="material-symbols-outlined text-[14px] text-[#22c55e]">check_circle</span>
+            <p className="text-xs text-[#22c55e] font-medium">Draft saved! Redirecting to My Generations…</p>
+          </div>
+        )}
 
         {/* ── Scrollable body ── */}
         <main className="flex-1 overflow-y-auto no-scrollbar px-8 pb-10 bg-[#0a0a0a]">
@@ -120,22 +195,8 @@ export default function InvoiceGenerator() {
             {/* ── Main card ── */}
             <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-6 md:p-10 mb-8 shadow-2xl">
 
-              {/* ── Logo upload + Invoice meta ── */}
-              <div className="flex flex-col lg:flex-row justify-between gap-10 mb-12 border-b border-[#2a2a2a] pb-10">
-
-                {/* Logo uploader */}
-                <div className="w-full lg:w-1/3">
-                  <label className="block text-sm font-semibold text-[#888888] mb-2">Company Logo</label>
-                  <div className="border-2 border-dashed border-[#2a2a2a] hover:border-[#22c55e]/50 transition-colors rounded-lg bg-[#0a0a0a]/50 h-32 flex flex-col items-center justify-center cursor-pointer group">
-                    <div className="bg-[#1a1a1a] border border-[#2a2a2a] group-hover:bg-[#22c55e]/10 group-hover:border-[#22c55e]/20 p-2 rounded-full mb-2 transition-colors">
-                      <span className="material-symbols-outlined text-[#22c55e] text-[24px]">cloud_upload</span>
-                    </div>
-                    <p className="text-sm text-[#888888] font-medium group-hover:text-[#f5f5f5] transition-colors">Click to upload logo</p>
-                    <p className="text-xs text-[#888888]/60">SVG, PNG, JPG (max 2MB)</p>
-                  </div>
-                </div>
-
-                {/* Invoice # / Status / Dates */}
+              {/* ── Invoice meta ── */}
+              <div className="mb-12 border-b border-[#2a2a2a] pb-10">
                 <div className="w-full lg:w-auto flex flex-col gap-4 min-w-[300px]">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1.5">
@@ -236,7 +297,10 @@ export default function InvoiceGenerator() {
                               </li>
                             ))}
                           </ul>
-                          <div className="border-t border-[#2a2a2a] px-4 py-2 bg-[#2a2a2a]/20 text-xs text-[#888888] rounded-b-lg flex items-center gap-1 cursor-pointer hover:text-[#22c55e] transition-colors">
+                          <div
+                            className="border-t border-[#2a2a2a] px-4 py-2 bg-[#2a2a2a]/20 text-xs text-[#888888] rounded-b-lg flex items-center gap-1 cursor-pointer hover:text-[#22c55e] transition-colors"
+                            onMouseDown={() => navigate('/clients')}
+                          >
                             <span className="material-symbols-outlined text-[14px]">add</span>
                             Create new client
                           </div>
@@ -261,7 +325,7 @@ export default function InvoiceGenerator() {
               </div>
 
               {/* ── Line Items Table ── */}
-              <div className="mb-12 overflow-x-auto">
+              <div className="mb-12">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="text-[#888888] border-b border-[#2a2a2a] text-xs font-bold uppercase tracking-wider">
@@ -287,19 +351,27 @@ export default function InvoiceGenerator() {
                         <td className="py-3 text-right">
                           <input
                             className="w-full bg-transparent border-0 p-0 text-right text-[#888888] focus:ring-0 outline-none font-mono text-sm"
-                            type="number"
+                            type="text"
+                            inputMode="decimal"
                             placeholder="0.00"
                             value={it.rate}
                             onChange={e => updateItem(i, 'rate', e.target.value)}
+                            onKeyDown={e => {
+                              if (!/[0-9.]/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight','Home','End'].includes(e.key)) e.preventDefault()
+                            }}
                           />
                         </td>
                         <td className="py-3 text-right">
                           <input
                             className="w-full bg-transparent border-0 p-0 text-right text-[#888888] focus:ring-0 outline-none font-mono text-sm"
-                            type="number"
+                            type="text"
+                            inputMode="numeric"
                             placeholder="1"
                             value={it.qty}
                             onChange={e => updateItem(i, 'qty', e.target.value)}
+                            onKeyDown={e => {
+                              if (!/[0-9]/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight','Home','End'].includes(e.key)) e.preventDefault()
+                            }}
                           />
                         </td>
                         <td className="py-3 text-right font-mono text-[#f5f5f5] text-sm">
@@ -374,10 +446,7 @@ export default function InvoiceGenerator() {
 
             </div>
 
-            {/* Footer */}
-            <footer className="w-full py-6 text-center text-[#888888] text-xs">
-              <p>© 2023 BillCraft Inc. All rights reserved.</p>
-            </footer>
+
 
           </div>
         </main>
