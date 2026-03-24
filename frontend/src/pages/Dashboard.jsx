@@ -80,7 +80,7 @@ export default function Dashboard() {
       <Sidebar active="dashboard" />
 
       {/* ── Main content ── */}
-      <main className="flex-1 ml-[260px] h-screen overflow-y-auto no-scrollbar bg-[#0a0a0a] relative">
+      <main className="flex-1 h-screen overflow-y-auto no-scrollbar bg-[#0a0a0a] relative" style={{ marginLeft: 'var(--sidebar-w)', transition: 'margin-left 300ms ease-in-out' }}>
         <div className="max-w-7xl mx-auto p-8 flex flex-col gap-8">
 
           {/* Header */}

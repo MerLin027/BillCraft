@@ -91,7 +91,7 @@ export default function ContractBuilderEditor({ onBack }) {
 
       <Sidebar active="contract-builder" />
 
-      <div className="flex-1 flex flex-col h-screen overflow-hidden ml-[260px]">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden" style={{ marginLeft: 'var(--sidebar-w)', transition: 'margin-left 300ms ease-in-out' }}>
 
         {/* Top bar */}
         <header className="px-8 pt-10 pb-6 flex flex-col md:flex-row md:items-end justify-between gap-6 bg-[#0a0a0a]/80 backdrop-blur-sm sticky top-0 z-20 shrink-0">

@@ -14,6 +14,21 @@ export function AppProvider({ children }) {
   const [clients, setClients] = useState([])
   const [generations, setGenerations] = useState([])
   const [intendedDestination, setIntendedDestination] = useState(null)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('billcraft_sidebar') === 'collapsed' } catch { return false }
+  })
+  function toggleSidebar() {
+    setSidebarCollapsed(v => {
+      const next = !v
+      try { localStorage.setItem('billcraft_sidebar', next ? 'collapsed' : 'expanded') } catch {}
+      return next
+    })
+  }
+
+  // Set CSS var synchronously every render so pages always have the correct margin
+  if (typeof document !== 'undefined') {
+    document.documentElement.style.setProperty('--sidebar-w', sidebarCollapsed ? '72px' : '260px')
+  }
 
   const login = () => {
     const userData = { name: 'Vrushank', email: '23it032@charusat.edu.in' }
@@ -61,6 +76,7 @@ export function AppProvider({ children }) {
       clients, addClient, updateClient, deleteClient,
       generations, addGeneration, updateGenerationStatus,
       intendedDestination, setIntendedDestination,
+      sidebarCollapsed, toggleSidebar,
     }}>
       {children}
     </AppContext.Provider>

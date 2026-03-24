@@ -72,7 +72,7 @@ export default function ProfileScreen() {
 
       <Sidebar active="profile" />
 
-      <main className="flex-1 ml-[260px] h-screen overflow-hidden bg-[#0a0a0a] flex flex-col px-8 pt-0 pb-6 gap-4">
+      <main className="flex-1 h-screen overflow-hidden bg-[#0a0a0a] flex flex-col px-8 pt-0 pb-6 gap-4" style={{ marginLeft: 'var(--sidebar-w)', transition: 'margin-left 300ms ease-in-out' }}>
 
         {/* ── Page header ── */}
         <div className="shrink-0 pt-8 pb-4 flex flex-col md:flex-row md:items-end justify-between gap-6">

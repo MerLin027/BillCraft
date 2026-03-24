@@ -29,7 +29,7 @@ export default function ClientScreen() {
       <Sidebar active="clients" />
 
       {/* Main */}
-      <main className="flex-1 flex flex-col h-full relative bg-[#0a0a0a] ml-[260px]">
+      <main className="flex-1 flex flex-col h-full relative bg-[#0a0a0a]" style={{ marginLeft: 'var(--sidebar-w)', transition: 'margin-left 300ms ease-in-out' }}>
 
         {/* Header */}
         <header className="px-8 pt-10 pb-6 flex flex-col md:flex-row md:items-end justify-between gap-6 bg-[#0a0a0a]/80 backdrop-blur-sm sticky top-0 z-10">
