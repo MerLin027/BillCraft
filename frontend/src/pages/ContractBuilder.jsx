@@ -4,12 +4,12 @@ import Sidebar from '../components/Sidebar'
 
 export default function ContractBuilder() {
   const navigate = useNavigate()
-  const { user } = useApp()
+  const { user, sidebarCollapsed } = useApp()
 
   return (
     <div className="bg-[#0a0a0a] text-[#f5f5f5] h-screen overflow-hidden flex font-display antialiased">
       <Sidebar active="contract-builder" />
-      <main className="flex-1 h-full flex flex-col bg-[#0a0a0a]" style={{ marginLeft: 'var(--sidebar-w)', transition: 'margin-left 300ms ease-in-out' }}>
+      <main className="flex-1 h-full flex flex-col bg-[#0a0a0a]" style={{ marginLeft: sidebarCollapsed ? '60px' : '260px', transition: 'margin-left 300ms ease-in-out' }}>
         <header className="px-8 pt-10 pb-6 flex flex-col md:flex-row md:items-end justify-between gap-6 bg-[#0a0a0a]/80 backdrop-blur-sm sticky top-0 z-10">
           <div className="flex flex-col gap-2">
             <h2 className="text-3xl font-bold tracking-tight text-[#f5f5f5]">Contract Builder</h2>

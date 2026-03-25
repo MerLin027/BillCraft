@@ -56,7 +56,7 @@ const RECENT_ROWS = [
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { user, clients, generations } = useApp()
+  const { user, clients, generations, sidebarCollapsed } = useApp()
 
   const [dateStr, setDateStr] = useState('')
 
@@ -80,7 +80,7 @@ export default function Dashboard() {
       <Sidebar active="dashboard" />
 
       {/* ── Main content ── */}
-      <main className="flex-1 h-screen overflow-y-auto no-scrollbar bg-[#0a0a0a] relative" style={{ marginLeft: 'var(--sidebar-w)', transition: 'margin-left 300ms ease-in-out' }}>
+      <main className="flex-1 h-screen overflow-y-auto no-scrollbar bg-[#0a0a0a] relative" style={{ marginLeft: sidebarCollapsed ? '60px' : '260px', transition: 'margin-left 300ms ease-in-out' }}>
         <div className="max-w-7xl mx-auto p-8 flex flex-col gap-8">
 
           {/* Header */}

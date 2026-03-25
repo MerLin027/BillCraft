@@ -9,7 +9,7 @@ const inputUnderline =
 
 export default function InvoiceGenerator() {
   const navigate = useNavigate()
-  const { user, addGeneration, clients } = useApp()
+  const { user, addGeneration, clients, sidebarCollapsed } = useApp()
 
   // Map AppContext (user-added) clients to invoice shape
   const contextClients = clients.map(c => ({
@@ -140,7 +140,7 @@ export default function InvoiceGenerator() {
     <div className="bg-[#0a0a0a] text-[#f5f5f5] font-display antialiased min-h-screen flex overflow-hidden">
       <Sidebar active="invoice-generator" />
 
-      <div className="flex-1 flex flex-col h-screen overflow-hidden" style={{ marginLeft: 'var(--sidebar-w)', transition: 'margin-left 300ms ease-in-out' }}>
+      <div className="flex-1 flex flex-col h-screen overflow-hidden" style={{ marginLeft: sidebarCollapsed ? '60px' : '260px', transition: 'margin-left 300ms ease-in-out' }}>
 
         {/* ── Header ── */}
         <header className="px-8 pt-10 pb-6 flex flex-col md:flex-row md:items-end justify-between gap-6 bg-[#0a0a0a]/80 backdrop-blur-sm sticky top-0 z-10 shrink-0">
