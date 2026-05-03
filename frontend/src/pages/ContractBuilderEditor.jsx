@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import { useApp } from '../context/AppContext'
 
+const API_BASE = ''
+
 const SUGGESTED_CLIENTS = [
   { name: 'Acme Corp',    email: 'contact@acmecorp.com',  businessName: 'Acme Corporation',      phone: '+1 (555) 123-4567', type: 'corporation' },
   { name: 'Globex Inc.',  email: 'billing@globex.com',    businessName: 'Globex International',   phone: '+1 (555) 987-6543', type: 'llc' },
@@ -19,7 +21,11 @@ const sectionLabel = (icon, text) => (
 )
 
 export default function ContractBuilderEditor({ onBack }) {
-  const { sidebarCollapsed } = useApp()
+  const { sidebarCollapsed, addGeneration } = useApp()
+  const [downloading, setDownloading] = useState(false)
+  const [downloadingWord, setDownloadingWord] = useState(false)
+  const [contractError, setContractError] = useState('')
+  const [savedToast, setSavedToast] = useState(false)
   // Freelancer
   const [freelancerName,  setFreelancerName]  = useState('Jane Doe Designs')
   const [freelancerEmail, setFreelancerEmail] = useState('jane@example.com')
@@ -79,6 +85,108 @@ export default function ContractBuilderEditor({ onBack }) {
     setShowDropdown(false)
   }
 
+  function buildContractPayload() {
+    return {
+      contractTitle: 'Freelance Service Agreement',
+      freelancerName,
+      freelancerEmail,
+      effectiveDate,
+      clientName,
+      businessName,
+      clientPhone,
+      businessType,
+      items,
+      deposit,
+      dueDate,
+      milestones,
+      lateFee,
+      ipTransfer,
+      portfolio,
+    }
+  }
+
+  function handleSaveDraft() {
+    if (!clientName.trim() && !businessName.trim() && !clientSearch.trim()) {
+      setContractError('Client details are required to save a draft.')
+      return
+    }
+    setContractError('')
+    const title = businessName.trim() || clientName.trim() || clientSearch.trim() || 'Untitled Contract'
+    addGeneration({
+      title,
+      subtitle: businessType || 'Service Agreement',
+      type: 'Contract',
+      typeIcon: 'contract',
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      dateRed: false,
+      amount: fmtMoney(total),
+      status: 'pending',
+      statusOptions: ['paid', 'pending', 'overdue'],
+      downloadKind: 'contract',
+      downloadPayload: buildContractPayload(),
+    })
+    setSavedToast(true)
+    setTimeout(() => setSavedToast(false), 2000)
+  }
+
+  async function handleSaveWord() {
+    if (!freelancerName.trim() || !clientName.trim()) {
+      setContractError('Freelancer name and client name are required.')
+      return
+    }
+    setContractError('')
+    setDownloadingWord(true)
+    try {
+      const payload = buildContractPayload()
+      const res = await fetch(`${API_BASE}/api/contracts/word`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) throw new Error(`Server returned ${res.status}`)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Contract-${clientName || businessName || 'client'}.docx`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setContractError(`Download failed. ${err?.message || 'Please ensure backend is running.'}`)
+    } finally {
+      setDownloadingWord(false)
+    }
+  }
+
+  async function handleDownloadPDF() {
+    if (!freelancerName.trim() || !clientName.trim()) {
+      setContractError('Freelancer name and client name are required.')
+      return
+    }
+    setContractError('')
+    setDownloading(true)
+    try {
+      const payload = buildContractPayload()
+      const res = await fetch(`${API_BASE}/api/contracts/download`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) throw new Error(`Server returned ${res.status}`)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Contract-${clientName || businessName || 'client'}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setContractError(`Download failed. ${err?.message || 'Please ensure backend is running.'}`)
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   const Toggle = ({ checked, onChange }) => (
     <label className="relative inline-flex items-center cursor-pointer">
       <input type="checkbox" className="sr-only peer" checked={checked} onChange={e => onChange(e.target.checked)} />
@@ -122,11 +230,20 @@ export default function ContractBuilderEditor({ onBack }) {
               <span className="material-symbols-outlined text-lg">{previewOpen ? 'visibility_off' : 'visibility'}</span>
               <span className="text-xs">{previewOpen ? 'Hide Preview' : 'Show Preview'}</span>
             </button>
-            <button className="flex items-center justify-center rounded-lg h-9 px-5 bg-[#22c55e] text-[#0a0a0a] text-sm font-bold hover:bg-green-400 transition-colors shadow-lg shadow-[#22c55e]/20">
+            <button
+              className="flex items-center justify-center rounded-lg h-9 px-5 bg-[#22c55e] text-[#0a0a0a] text-sm font-bold hover:bg-green-400 transition-colors shadow-lg shadow-[#22c55e]/20"
+              onClick={handleSaveDraft}
+            >
               Save
             </button>
           </div>
         </header>
+        {savedToast && (
+          <div className="mx-8 mt-0 mb-2 flex items-center gap-2 bg-[#22c55e]/10 border border-[#22c55e]/30 rounded-lg px-4 py-2.5">
+            <span className="material-symbols-outlined text-[14px] text-[#22c55e]">check_circle</span>
+            <p className="text-xs text-[#22c55e] font-medium">Contract draft saved in My Generations.</p>
+          </div>
+        )}
 
         {/* Body */}
         <main className="flex flex-1 overflow-hidden">
@@ -376,13 +493,24 @@ export default function ContractBuilderEditor({ onBack }) {
             <div className="shrink-0 bg-[#111111] border-t border-[#2a2a2a] px-6 py-3.5 flex items-center justify-between">
               <span className="text-xs text-slate-500">Auto-saved 2m ago</span>
               <div className="flex items-center gap-3">
-                <button className="flex items-center gap-2 rounded-lg h-9 px-4 border border-[#2a2a2a] text-[#f5f5f5] text-sm font-semibold bg-transparent hover:bg-white/5 transition-colors">
+                <button
+                  className="flex items-center gap-2 rounded-lg h-9 px-4 border border-[#2a2a2a] text-[#f5f5f5] text-sm font-semibold bg-transparent hover:bg-white/5 transition-colors disabled:opacity-60"
+                  onClick={handleSaveWord}
+                  disabled={downloadingWord}
+                >
                   <span className="material-symbols-outlined text-base">description</span>
-                  Word
+                  {downloadingWord ? 'Generating…' : 'Word'}
                 </button>
-                <button className="flex items-center gap-2 rounded-lg h-9 px-5 bg-[#22c55e] text-[#0a0a0a] text-sm font-bold hover:bg-green-400 shadow-lg shadow-[#22c55e]/20 transition-all active:scale-95">
+                {contractError && (
+                  <span className="text-xs text-red-400">{contractError}</span>
+                )}
+                <button
+                  className="flex items-center gap-2 rounded-lg h-9 px-5 bg-[#22c55e] text-[#0a0a0a] text-sm font-bold hover:bg-green-400 shadow-lg shadow-[#22c55e]/20 transition-all active:scale-95 disabled:opacity-60"
+                  onClick={handleDownloadPDF}
+                  disabled={downloading}
+                >
                   <span className="material-symbols-outlined text-base">download</span>
-                  Download PDF
+                  {downloading ? 'Generating…' : 'Download PDF'}
                 </button>
               </div>
             </div>

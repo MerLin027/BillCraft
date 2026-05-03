@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext'
 
 export default function LoginScreen() {
   const navigate = useNavigate()
-  const { login, intendedDestination, setIntendedDestination } = useApp()
+  const { login, loginWithGoogle, intendedDestination, setIntendedDestination } = useApp()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -13,6 +13,7 @@ export default function LoginScreen() {
   const [exiting, setExiting] = useState(false)
   const [visible, setVisible] = useState(false)
   const [errors, setErrors] = useState({})
+  const [authError, setAuthError] = useState('')
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 10)
@@ -37,7 +38,24 @@ export default function LoginScreen() {
     if (!password) errs.password = 'Password is required.'
     if (Object.keys(errs).length) { setErrors(errs); return }
     setErrors({})
-    login()
+    const result = login({ email: email.trim(), password })
+    if (!result.ok) {
+      setAuthError(result.error || 'Unable to log in.')
+      return
+    }
+    setAuthError('')
+    const destination = intendedDestination || '/dashboard'
+    setIntendedDestination(null)
+    navigateWithFade(destination)
+  }
+
+  function handleGoogleLogin() {
+    const result = loginWithGoogle()
+    if (!result.ok) {
+      setAuthError(result.error || 'Google login failed.')
+      return
+    }
+    setAuthError('')
     const destination = intendedDestination || '/dashboard'
     setIntendedDestination(null)
     navigateWithFade(destination)
@@ -124,6 +142,11 @@ export default function LoginScreen() {
 
             {/* Form */}
             <form className="flex flex-col gap-5" onSubmit={handleLogin}>
+              {authError && (
+                <div className="bg-[#ef4444]/10 border border-[#ef4444]/30 rounded-lg px-3 py-2 text-xs text-[#ef4444]">
+                  {authError}
+                </div>
+              )}
 
               {/* Email */}
               <div className="space-y-2">
@@ -226,6 +249,7 @@ export default function LoginScreen() {
               <button
                 type="button"
                 className="flex items-center justify-center gap-3 h-12 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] hover:bg-white/5 transition-colors"
+                onClick={handleGoogleLogin}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />

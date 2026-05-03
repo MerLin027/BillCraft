@@ -5,15 +5,47 @@ import { STATIC_CLIENTS } from '../data/staticClients'
 
 
 export default function ClientScreen() {
-  const { user, clients, generations, sidebarCollapsed } = useApp()
+  const { user, clients, addClient, generations, sidebarCollapsed } = useApp()
 
+  const [addOpen,    setAddOpen]    = useState(false)
   const [editOpen,   setEditOpen]   = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [search,     setSearch]     = useState('')
   const [currentPage, setCurrentPage] = useState(1)
+  const [addErrors, setAddErrors] = useState({})
+  const [newClient, setNewClient] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    business: '',
+    industry: '',
+  })
   const PER_PAGE = 8
 
-  const filteredClients = STATIC_CLIENTS.filter(c =>
+  const contextClients = clients.map(c => ({
+    name: c.name || '',
+    email: c.email || '',
+    phone: c.phone || '-',
+    business: c.business || '-',
+    industry: c.industry || 'General',
+    date: c.dateAdded || '-',
+    initials: (c.name || 'NA')
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(s => s[0]?.toUpperCase())
+      .join('') || 'NA',
+    avatarBg: 'bg-[#22c55e]/15',
+    avatarText: 'text-[#22c55e]',
+    avatarBorder: 'border-[#22c55e]/20',
+    industryBg: 'bg-blue-500/10',
+    industryText: 'text-blue-400',
+    industryBorder: 'border-blue-500/20',
+    __context: true,
+  }))
+  const mergedClients = [...contextClients, ...STATIC_CLIENTS]
+
+  const filteredClients = mergedClients.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase())
   )
 
@@ -21,6 +53,31 @@ export default function ClientScreen() {
   const pageStart    = Math.min((currentPage - 1) * PER_PAGE + 1, filteredClients.length || 1)
   const pageEnd      = Math.min(currentPage * PER_PAGE, filteredClients.length)
   const pagedClients = filteredClients.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE)
+
+  function resetAddForm() {
+    setNewClient({ name: '', email: '', phone: '', business: '', industry: '' })
+    setAddErrors({})
+  }
+
+  function handleAddClient() {
+    const errs = {}
+    if (!newClient.name.trim()) errs.name = 'Client name is required.'
+    if (!newClient.email.trim()) errs.email = 'Email is required.'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newClient.email)) errs.email = 'Enter a valid email address.'
+    if (Object.keys(errs).length) {
+      setAddErrors(errs)
+      return
+    }
+    addClient({
+      name: newClient.name.trim(),
+      email: newClient.email.trim(),
+      phone: newClient.phone.trim(),
+      business: newClient.business.trim(),
+      industry: newClient.industry.trim(),
+    })
+    setAddOpen(false)
+    resetAddForm()
+  }
 
   return (
     <div className="bg-[#0a0a0a] text-[#f5f5f5] font-display antialiased overflow-hidden flex h-screen w-full flex-row">
@@ -50,7 +107,10 @@ export default function ClientScreen() {
                 onChange={e => { setSearch(e.target.value); setCurrentPage(1) }}
               />
             </div>
-            <button className="flex items-center gap-2 bg-[#22c55e] hover:bg-green-600 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-lg shadow-[#22c55e]/20 whitespace-nowrap">
+            <button
+              className="flex items-center gap-2 bg-[#22c55e] hover:bg-green-600 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-lg shadow-[#22c55e]/20 whitespace-nowrap"
+              onClick={() => setAddOpen(true)}
+            >
               <span className="material-symbols-outlined text-xl">add</span>
               <span className="hidden md:inline">Add Client</span>
             </button>
@@ -167,6 +227,64 @@ export default function ClientScreen() {
           </div>
         </div>
       </main>
+
+      {/* ── Add Modal ── */}
+      {addOpen && (
+        <div className="fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
+          <div
+            className="absolute w-full h-full bg-black/80 backdrop-blur-sm"
+            onClick={() => { setAddOpen(false); resetAddForm() }}
+          />
+          <div className="relative bg-[#1a1a1a] w-full md:max-w-lg mx-auto rounded-xl shadow-2xl z-50 overflow-y-auto max-h-[90vh] border border-[#2a2a2a]">
+            <div className="flex justify-between items-center py-4 px-6 border-b border-[#2a2a2a]">
+              <p className="text-xl font-bold text-white">Add Client</p>
+              <div className="cursor-pointer z-50" onClick={() => { setAddOpen(false); resetAddForm() }}>
+                <span className="material-symbols-outlined text-[#a3a3a3] hover:text-white transition-colors">close</span>
+              </div>
+            </div>
+            <div className="px-6 py-6 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-[#a3a3a3] mb-1.5" htmlFor="add-name">Client Name</label>
+                <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="add-name" type="text" value={newClient.name} onChange={e => { setNewClient(p => ({ ...p, name: e.target.value })); setAddErrors(p => ({ ...p, name: undefined })) }} />
+                {addErrors.name && <p className="text-xs text-[#ef4444] mt-1">{addErrors.name}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-[#a3a3a3] mb-1.5" htmlFor="add-email">Email Address</label>
+                <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="add-email" type="email" value={newClient.email} onChange={e => { setNewClient(p => ({ ...p, email: e.target.value })); setAddErrors(p => ({ ...p, email: undefined })) }} />
+                {addErrors.email && <p className="text-xs text-[#ef4444] mt-1">{addErrors.email}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-[#a3a3a3] mb-1.5" htmlFor="add-phone">Phone Number</label>
+                <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="add-phone" type="tel" value={newClient.phone} onChange={e => setNewClient(p => ({ ...p, phone: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-[#a3a3a3] mb-1.5" htmlFor="add-business">Business Name</label>
+                  <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="add-business" type="text" value={newClient.business} onChange={e => setNewClient(p => ({ ...p, business: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-[#a3a3a3] mb-1.5" htmlFor="add-type">Business Type</label>
+                  <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="add-type" type="text" value={newClient.industry} onChange={e => setNewClient(p => ({ ...p, industry: e.target.value }))} />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 bg-[#111111] rounded-b-xl border-t border-[#2a2a2a]">
+              <button
+                className="px-4 py-2 bg-transparent border border-[#2a2a2a] text-[#a3a3a3] rounded-lg text-sm font-semibold hover:bg-[#0a0a0a] hover:text-white transition-colors"
+                onClick={() => { setAddOpen(false); resetAddForm() }}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 bg-[#22c55e] text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-colors shadow-md shadow-[#22c55e]/20"
+                onClick={handleAddClient}
+              >
+                Add Client
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Edit Modal ── */}
       {editOpen && (

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import Sidebar from '../components/Sidebar'
 
+const API_BASE = ''
+
 // ── Static demo data ──────────────────────────────────────────────────────────
 const INITIAL_ROWS = [
   {
@@ -97,6 +99,15 @@ const STATUS_TEXT = {
   expired: 'text-[#a3a3a3]',
 }
 
+function toAmountFromPayload(g) {
+  if (g.amount && g.amount !== '-') return g.amount
+  const items = g.downloadPayload?.items
+  if (!Array.isArray(items)) return '-'
+  const total = items.reduce((sum, it) => sum + (Number(it.rate) || 0) * (Number(it.qty) || 0), 0)
+  if (total <= 0) return '-'
+  return `$${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
 function StatusBadge({ status, options, onChange }) {
   const [open, setOpen] = useState(false)
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.expired
@@ -152,7 +163,9 @@ function StatusBadge({ status, options, onChange }) {
 // ── Main component ────────────────────────────────────────────────────────────
 export default function MyGenerations() {
   const navigate = useNavigate()
-  const { user, generations, sidebarCollapsed } = useApp()
+  const { user, generations, updateGenerationStatus, sidebarCollapsed } = useApp()
+  const [downloadError, setDownloadError] = useState('')
+  const [busyDownloadId, setBusyDownloadId] = useState('')
 
   // Map context generations to row shape and prepend to static demo rows
   const contextRows = generations.map(g => ({
@@ -163,9 +176,11 @@ export default function MyGenerations() {
     typeIcon:      g.typeIcon || 'receipt_long',
     date:          g.date || new Date(g.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
     dateRed:       false,
-    amount:        g.amount || '-',
-    status:        g.status?.toLowerCase() || 'pending',
-    statusOptions: g.statusOptions || ['paid', 'pending', 'overdue'],
+    amount:        toAmountFromPayload(g),
+    status:        (g.status?.toLowerCase() === 'active' ? 'pending' : g.status?.toLowerCase() === 'expired' ? 'overdue' : g.status?.toLowerCase()) || 'pending',
+    statusOptions: ['paid', 'pending', 'overdue'],
+    downloadKind:  g.downloadKind || ((g.type || '').toLowerCase() === 'contract' ? 'contract' : 'invoice'),
+    downloadPayload: g.downloadPayload,
   }))
 
   const [rows, setRows] = useState(INITIAL_ROWS)
@@ -183,7 +198,55 @@ export default function MyGenerations() {
   const pagedRows   = filteredRows.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE)
 
   function handleStatusChange(rowId, newStatus) {
+    const asNumber = Number(rowId)
+    const isContextRow = Number.isFinite(asNumber) && generations.some(g => g.id === asNumber)
+    if (isContextRow) {
+      updateGenerationStatus(asNumber, newStatus)
+      return
+    }
     setRows(prev => prev.map(r => (r.id === rowId ? { ...r, status: newStatus } : r)))
+  }
+
+  async function handleDownload(row, format) {
+    const endpointMap = {
+      invoice: {
+        pdf: '/api/invoices/download',
+        word: '/api/invoices/word',
+      },
+      contract: {
+        pdf: '/api/contracts/download',
+        word: '/api/contracts/word',
+      },
+    }
+    const kind = row.downloadKind || 'invoice'
+    const endpoint = endpointMap[kind]?.[format]
+    if (!endpoint || !row.downloadPayload) {
+      setDownloadError('This draft was saved before download data was available. Please open and save it again.')
+      return
+    }
+    setDownloadError('')
+    setBusyDownloadId(`${row.id}:${format}`)
+    try {
+      const res = await fetch(`${API_BASE}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(row.downloadPayload),
+      })
+      if (!res.ok) throw new Error('Download failed')
+      const blob = await res.blob()
+      const ext = format === 'pdf' ? 'pdf' : 'docx'
+      const safeName = (row.title || row.id || 'document').replace(/[^\w.-]+/g, '_')
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${safeName}.${ext}`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setDownloadError('Download failed. Ensure backend is running on port 4000 and try again.')
+    } finally {
+      setBusyDownloadId('')
+    }
   }
 
   return (
@@ -225,6 +288,12 @@ export default function MyGenerations() {
             </div>
           </div>
         </header>
+        {downloadError && (
+          <div className="mx-8 mt-0 mb-2 flex items-center gap-2 bg-[#ef4444]/10 border border-[#ef4444]/30 rounded-lg px-4 py-2.5">
+            <span className="material-symbols-outlined text-[14px] text-[#ef4444]">error</span>
+            <p className="text-xs text-[#ef4444] font-medium">{downloadError}</p>
+          </div>
+        )}
 
         {/* ── Table area — exact match to ClientScreen ── */}
         <div className="flex-1 overflow-y-auto p-4 md:px-8 md:pt-5 md:pb-8">
@@ -300,16 +369,20 @@ export default function MyGenerations() {
                           <button
                             className="px-3 py-1.5 rounded-md bg-transparent border border-[#2a2a2a] text-[#a3a3a3] hover:text-[#ef4444] hover:border-[#ef4444] text-xs font-medium transition-colors flex items-center gap-1"
                             title="Download PDF"
+                            onClick={() => handleDownload(row, 'pdf')}
+                            disabled={busyDownloadId === `${row.id}:pdf`}
                           >
                             <span className="material-symbols-outlined text-sm">picture_as_pdf</span>
-                            PDF
+                            {busyDownloadId === `${row.id}:pdf` ? '...' : 'PDF'}
                           </button>
                           <button
                             className="px-3 py-1.5 rounded-md bg-transparent border border-[#2a2a2a] text-[#a3a3a3] hover:text-[#22c55e] hover:border-[#22c55e] text-xs font-medium transition-colors flex items-center gap-1"
                             title="Download Word"
+                            onClick={() => handleDownload(row, 'word')}
+                            disabled={busyDownloadId === `${row.id}:word`}
                           >
                             <span className="material-symbols-outlined text-sm">description</span>
-                            Word
+                            {busyDownloadId === `${row.id}:word` ? '...' : 'Word'}
                           </button>
                         </div>
                       </td>

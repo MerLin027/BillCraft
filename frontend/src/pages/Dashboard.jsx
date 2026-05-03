@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import Sidebar from '../components/Sidebar'
@@ -54,6 +54,14 @@ const RECENT_ROWS = [
   },
 ]
 
+const STATUS_STYLES = {
+  paid:    { label: 'Paid',    statusStyle: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', dotStyle: 'bg-emerald-400' },
+  active:  { label: 'Active',  statusStyle: 'bg-blue-500/10 text-blue-400 border-blue-500/20',           dotStyle: 'bg-blue-400' },
+  pending: { label: 'Pending', statusStyle: 'bg-amber-500/10 text-amber-400 border-amber-500/20',         dotStyle: 'bg-amber-400' },
+  overdue: { label: 'Overdue', statusStyle: 'bg-red-500/10 text-red-400 border-red-500/20',               dotStyle: 'bg-red-400' },
+  expired: { label: 'Expired', statusStyle: 'bg-slate-500/10 text-slate-400 border-slate-500/20',         dotStyle: 'bg-slate-400' },
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const { user, clients, generations, sidebarCollapsed } = useApp()
@@ -72,6 +80,50 @@ export default function Dashboard() {
   }, [])
 
   const displayName = user?.name ?? 'Alex'
+  const invoiceGenerations = useMemo(
+    () => generations.filter(g => (g.type || 'Invoice').toLowerCase() === 'invoice'),
+    [generations]
+  )
+  const pendingOrOverdueTotal = useMemo(() => {
+    return invoiceGenerations
+      .filter(g => ['pending', 'overdue'].includes((g.status || '').toLowerCase()))
+      .reduce((sum, g) => {
+        const numeric = Number(String(g.amount || '').replace(/[^0-9.-]+/g, ''))
+        return sum + (Number.isFinite(numeric) ? numeric : 0)
+      }, 0)
+  }, [invoiceGenerations])
+  const recentRows = useMemo(() => {
+    const mapped = generations
+      .slice()
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+      .slice(0, 6)
+      .map(g => {
+        const normalizedStatus = (g.status || 'pending').toLowerCase()
+        const cfg = STATUS_STYLES[normalizedStatus] || STATUS_STYLES.pending
+        const name = g.title || 'Untitled'
+        const initials = name
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(0, 2)
+          .map(s => s[0].toUpperCase())
+          .join('')
+        return {
+          type: g.type || 'Invoice',
+          typeStyle: (g.type || 'Invoice').toLowerCase() === 'contract'
+            ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+            : 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+          initials: initials || 'NA',
+          client: name,
+          date: g.date || new Date(g.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          amount: g.amount || '-',
+          amountClass: g.amount && g.amount !== '-' ? 'text-[#f5f5f5]' : 'text-slate-400',
+          status: cfg.label,
+          statusStyle: cfg.statusStyle,
+          dotStyle: cfg.dotStyle,
+        }
+      })
+    return mapped.length ? mapped : RECENT_ROWS
+  }, [generations])
 
   return (
     <div className="bg-[#0a0a0a] text-[#f5f5f5] min-h-screen overflow-hidden flex font-display antialiased">
@@ -127,7 +179,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-slate-400 text-sm font-medium">Total Clients</p>
-                <h3 className="text-2xl font-bold text-[#f5f5f5] mt-1">12</h3>
+                <h3 className="text-2xl font-bold text-[#f5f5f5] mt-1">{clients.length}</h3>
               </div>
               <p className="text-xs text-slate-500 font-medium">+2 this month</p>
             </div>
@@ -145,7 +197,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-slate-400 text-sm font-medium">Total Invoices</p>
-                <h3 className="text-2xl font-bold text-[#f5f5f5] mt-1">48</h3>
+                <h3 className="text-2xl font-bold text-[#f5f5f5] mt-1">{invoiceGenerations.length}</h3>
               </div>
               <p className="text-xs text-slate-500 font-medium">+5 this month</p>
             </div>
@@ -181,7 +233,9 @@ export default function Dashboard() {
               </div>
               <div className="relative z-10">
                 <p className="text-slate-400 text-sm font-medium">Pending Payments</p>
-                <h3 className="text-2xl font-bold text-[#f5f5f5] mt-1">$3,250.00</h3>
+                <h3 className="text-2xl font-bold text-[#f5f5f5] mt-1">
+                  {`$${pendingOrOverdueTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                </h3>
               </div>
               <p className="text-xs text-slate-500 font-medium relative z-10">Includes Overdue &amp; Pending</p>
             </div>
@@ -214,7 +268,7 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#27272a]/50 text-slate-200">
-                    {RECENT_ROWS.map((row, i) => (
+                    {recentRows.map((row, i) => (
                       <tr key={i} className="group hover:bg-white/[0.02] transition-colors">
                         <td className="px-6 py-4">
                           <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${row.typeStyle}`}>

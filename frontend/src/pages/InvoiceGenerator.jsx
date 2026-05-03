@@ -4,6 +4,8 @@ import { useApp } from '../context/AppContext'
 import Sidebar from '../components/Sidebar'
 import { STATIC_CLIENTS } from '../data/staticClients'
 
+const API_BASE = ''
+
 const inputUnderline =
   'w-full bg-transparent border-0 border-b border-[#2a2a2a] focus:border-[#22c55e] px-0 py-2 text-[#f5f5f5] placeholder-[#888888] focus:ring-0 outline-none transition-colors text-sm'
 
@@ -80,6 +82,31 @@ export default function InvoiceGenerator() {
   // Validation
   const [invoiceErrors, setInvoiceErrors] = useState([])
   const [savedToast,    setSavedToast]    = useState(false)
+  const [downloading,     setDownloading]   = useState(false)
+  const [downloadingWord,  setDownloadingWord] = useState(false)
+
+  function buildInvoicePayload() {
+    return {
+      invoiceNumber: 'INV-0024',
+      dateIssued,
+      dateDue,
+      fromName,
+      fromEmail,
+      fromStreet,
+      fromCity,
+      fromZip,
+      toName: clientSearch,
+      toEmail: clientSearch,
+      toCompany,
+      toPhone,
+      toStreet,
+      toCity,
+      toZip,
+      items,
+      taxRate,
+      notes,
+    }
+  }
 
   function validateInvoice() {
     const errs = []
@@ -105,10 +132,63 @@ export default function InvoiceGenerator() {
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       dateRed: false,
       amount: fmt(totalDue),
+      status: 'pending',
       statusOptions: ['paid', 'pending', 'overdue'],
+      downloadKind: 'invoice',
+      downloadPayload: buildInvoicePayload(),
     })
     setSavedToast(true)
     setTimeout(() => setSavedToast(false), 2000)
+  }
+
+  async function handleDownloadPDF() {
+    if (!validateInvoice()) return
+    setDownloading(true)
+    try {
+      const payload = buildInvoicePayload()
+      const res = await fetch(`${API_BASE}/api/invoices/download`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) throw new Error(`Server returned ${res.status}`)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `INV-0024-${toCompany || clientSearch || 'invoice'}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setInvoiceErrors([`Download failed. ${err?.message || 'Please ensure backend is running.'}`])
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  async function handleSaveWord() {
+    if (!validateInvoice()) return
+    setDownloadingWord(true)
+    try {
+      const payload = buildInvoicePayload()
+      const res = await fetch(`${API_BASE}/api/invoices/word`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) throw new Error(`Server returned ${res.status}`)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `INV-0024-${toCompany || clientSearch || 'invoice'}.docx`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setInvoiceErrors([`Download failed. ${err?.message || 'Please ensure backend is running.'}`])
+    } finally {
+      setDownloadingWord(false)
+    }
   }
 
   function selectClient(c) {
@@ -158,17 +238,19 @@ export default function InvoiceGenerator() {
             </button>
             <button
               className="flex items-center gap-1.5 rounded-lg h-9 px-5 bg-[#22c55e] text-[#0a0a0a] text-sm font-bold hover:bg-green-400 transition-colors shadow-lg shadow-[#22c55e]/20"
-              onClick={() => validateInvoice()}
+              onClick={handleSaveWord}
+              disabled={downloadingWord}
             >
               <span className="material-symbols-outlined text-lg">description</span>
-              <span>Save as Word</span>
+              <span>{downloadingWord ? 'Generating…' : 'Save as Word'}</span>
             </button>
             <button
               className="flex items-center justify-center gap-1.5 rounded-lg h-9 px-5 bg-[#22c55e] text-[#0a0a0a] text-sm font-bold hover:bg-green-400 transition-colors shadow-lg shadow-[#22c55e]/20"
-              onClick={() => validateInvoice()}
+              onClick={handleDownloadPDF}
+              disabled={downloading}
             >
               <span className="material-symbols-outlined text-lg">download</span>
-              <span>Download as PDF</span>
+              <span>{downloading ? 'Generating…' : 'Download as PDF'}</span>
             </button>
           </div>
         </header>
