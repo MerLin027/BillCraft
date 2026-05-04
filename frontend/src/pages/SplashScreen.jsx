@@ -28,7 +28,9 @@ export default function SplashScreen() {
         rafRef.current = requestAnimationFrame(step)
       } else {
         // Navigate after a short pause so the user sees 100%
-        setTimeout(() => navigate('/home'), 300)
+        setTimeout(() => {
+          navigate(user ? '/dashboard' : '/home')
+        }, 300)
       }
     }
 

@@ -23,6 +23,15 @@ export default function LoginScreen() {
     return () => clearTimeout(t)
   }, [])
 
+  const { user } = useApp()
+  useEffect(() => {
+    if (user) {
+      const destination = intendedDestination || '/dashboard'
+      setIntendedDestination(null)
+      navigate(destination)
+    }
+  }, [user, navigate, intendedDestination, setIntendedDestination])
+
   function navigateTo(path) {
     setExiting(true)
     setTimeout(() => navigate(path), 300)

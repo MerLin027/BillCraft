@@ -53,10 +53,10 @@ export default function HomeScreen() {
         </div>
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigateWithFade('/login')}
+            onClick={() => navigateWithFade(user ? '/dashboard' : '/login')}
             className="group relative px-6 py-2 rounded-lg border border-[#22c55e] text-[#22c55e] bg-transparent hover:bg-[#22c55e] hover:text-white transition-all duration-300 ease-in-out font-bold text-sm tracking-wide overflow-hidden"
           >
-            <span className="relative z-10">Login</span>
+            <span className="relative z-10">{user ? 'Dashboard' : 'Login'}</span>
             <div className="absolute inset-0 bg-[#22c55e]/0 group-hover:bg-[#22c55e]/10 transition-colors duration-300"></div>
           </button>
         </div>
