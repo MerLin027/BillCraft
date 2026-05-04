@@ -70,6 +70,8 @@ router.post('/word', async (req, res) => {
     notes = '',
   } = req.body
 
+  try {
+
   const subtotal  = items.reduce((s, it) => s + (parseFloat(it.rate) || 0) * (parseInt(it.qty) || 0), 0)
   const taxAmount = (subtotal * (parseFloat(taxRate) || 0)) / 100
   const total     = subtotal + taxAmount
@@ -299,6 +301,11 @@ router.post('/word', async (req, res) => {
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
   res.send(buffer)
+
+  } catch (err) {
+    console.error('[invoiceWord.js] unhandled error', err)
+    if (!res.headersSent) res.status(500).json({ error: 'Server error generating Word document' })
+  }
 })
 
 module.exports = router

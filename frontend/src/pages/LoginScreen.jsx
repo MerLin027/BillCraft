@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
+import Checkbox from '../components/Checkbox'
 
 export default function LoginScreen() {
   const navigate = useNavigate()
@@ -14,6 +15,8 @@ export default function LoginScreen() {
   const [visible, setVisible] = useState(false)
   const [errors, setErrors] = useState({})
   const [authError, setAuthError] = useState('')
+  const [isNetworkError, setIsNetworkError] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 10)
@@ -30,7 +33,7 @@ export default function LoginScreen() {
     setTimeout(() => navigate(path), 220)
   }
 
-  function handleLogin(e) {
+  async function handleLogin(e) {
     e.preventDefault()
     const errs = {}
     if (!email.trim()) errs.email = 'Email is required.'
@@ -38,12 +41,16 @@ export default function LoginScreen() {
     if (!password) errs.password = 'Password is required.'
     if (Object.keys(errs).length) { setErrors(errs); return }
     setErrors({})
-    const result = login({ email: email.trim(), password })
+    setAuthError('')
+    setIsNetworkError(false)
+    setIsLoading(true)
+    const result = await login({ email: email.trim(), password })
+    setIsLoading(false)
     if (!result.ok) {
-      setAuthError(result.error || 'Unable to log in.')
+      setIsNetworkError(!!result.isNetworkError)
+      setAuthError(result.error || 'Invalid email or password.')
       return
     }
-    setAuthError('')
     const destination = intendedDestination || '/dashboard'
     setIntendedDestination(null)
     navigateWithFade(destination)
@@ -143,8 +150,15 @@ export default function LoginScreen() {
             {/* Form */}
             <form className="flex flex-col gap-5" onSubmit={handleLogin}>
               {authError && (
-                <div className="bg-[#ef4444]/10 border border-[#ef4444]/30 rounded-lg px-3 py-2 text-xs text-[#ef4444]">
-                  {authError}
+                <div className={`flex items-start gap-2 rounded-lg px-3 py-2 text-xs border ${
+                  isNetworkError
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                    : 'bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]'
+                }`}>
+                  <span className="material-symbols-outlined text-[15px] mt-0.5 shrink-0">
+                    {isNetworkError ? 'wifi_off' : 'error'}
+                  </span>
+                  <span>{authError}</span>
                 </div>
               )}
 
@@ -201,37 +215,25 @@ export default function LoginScreen() {
               </div>
 
               {/* Remember me */}
-              <div className="flex items-center gap-2">
-                <label className="relative flex items-center cursor-pointer" htmlFor="remember">
-                  <input
-                    className="sr-only peer"
-                    id="remember"
-                    type="checkbox"
-                    checked={remember}
-                    onChange={e => setRemember(e.target.checked)}
-                  />
-                  <span
-                    className="w-4 h-4 rounded border-2 border-[#22c55e] bg-[#0a0a0a] flex items-center justify-center transition-colors duration-150
-                      peer-checked:bg-[#22c55e] peer-focus-visible:ring-2 peer-focus-visible:ring-[#22c55e]/50"
-                  >
-                    {remember && (
-                      <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 10" fill="none">
-                        <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
-                  </span>
-                </label>
-                <label className="text-sm font-medium text-[#a3a3a3] select-none" htmlFor="remember">
-                  Remember for 30 days
-                </label>
-              </div>
+              <Checkbox
+                id="remember"
+                checked={remember}
+                onChange={setRemember}
+                label="Remember for 30 days"
+              />
 
               {/* Submit */}
               <button
                 type="submit"
-                className="flex items-center justify-center w-full h-12 mt-2 rounded-lg bg-[#22c55e] text-white font-bold text-base hover:bg-[#22c55e]/90 focus:ring-4 focus:ring-[#22c55e]/30 transition-all duration-200 shadow-lg shadow-[#22c55e]/20"
+                disabled={isLoading}
+                className="flex items-center justify-center gap-2 w-full h-12 mt-2 rounded-lg bg-[#22c55e] text-white font-bold text-base hover:bg-[#22c55e]/90 focus:ring-4 focus:ring-[#22c55e]/30 transition-all duration-200 shadow-lg shadow-[#22c55e]/20 disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                Log In
+                {isLoading ? (
+                  <>
+                    <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                    Signing in…
+                  </>
+                ) : 'Log In'}
               </button>
             </form>
 

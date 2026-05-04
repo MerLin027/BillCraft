@@ -1,95 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useApp } from '../context/AppContext'
 import Sidebar from '../components/Sidebar'
 import ContractBuilderEditor from './ContractBuilderEditor'
-
-const STATIC_CONTRACTS = [
-  {
-    title: 'Web Development Agreement',
-    client: 'John Doe',
-    clientInitials: 'JD',
-    avatarBg: 'bg-purple-500/20',
-    avatarText: 'text-purple-400',
-    avatarBorder: 'border-purple-500/30',
-    type: 'Service Agreement',
-    typeBg: 'bg-blue-900/30',
-    typeText: 'text-blue-300',
-    typeBorder: 'border-blue-800/50',
-    status: 'Signed',
-    statusBg: 'bg-green-900/30',
-    statusText: 'text-green-300',
-    statusBorder: 'border-green-800/50',
-    date: 'Oct 24, 2023',
-  },
-  {
-    title: 'Brand Identity NDA',
-    client: 'Jane Smith',
-    clientInitials: 'JS',
-    avatarBg: 'bg-blue-500/20',
-    avatarText: 'text-blue-400',
-    avatarBorder: 'border-blue-500/30',
-    type: 'NDA',
-    typeBg: 'bg-orange-900/30',
-    typeText: 'text-orange-300',
-    typeBorder: 'border-orange-800/50',
-    status: 'Sent',
-    statusBg: 'bg-yellow-900/30',
-    statusText: 'text-yellow-300',
-    statusBorder: 'border-yellow-800/50',
-    date: 'Oct 22, 2023',
-  },
-  {
-    title: 'Logo Design Contract',
-    client: 'Robert Paulson',
-    clientInitials: 'RP',
-    avatarBg: 'bg-teal-500/20',
-    avatarText: 'text-teal-400',
-    avatarBorder: 'border-teal-500/30',
-    type: 'Design Contract',
-    typeBg: 'bg-teal-900/30',
-    typeText: 'text-teal-300',
-    typeBorder: 'border-teal-800/50',
-    status: 'Draft',
-    statusBg: 'bg-[#2a2a2a]',
-    statusText: 'text-[#a3a3a3]',
-    statusBorder: 'border-[#3a3a3a]',
-    date: 'Oct 20, 2023',
-  },
-  {
-    title: 'SEO Retainer Agreement',
-    client: 'Peter Lumburgh',
-    clientInitials: 'PL',
-    avatarBg: 'bg-orange-500/20',
-    avatarText: 'text-orange-400',
-    avatarBorder: 'border-orange-500/30',
-    type: 'Retainer',
-    typeBg: 'bg-purple-900/30',
-    typeText: 'text-purple-300',
-    typeBorder: 'border-purple-800/50',
-    status: 'Signed',
-    statusBg: 'bg-green-900/30',
-    statusText: 'text-green-300',
-    statusBorder: 'border-green-800/50',
-    date: 'Oct 18, 2023',
-  },
-  {
-    title: 'Security Audit Contract',
-    client: 'Albert Wesker',
-    clientInitials: 'AW',
-    avatarBg: 'bg-red-500/20',
-    avatarText: 'text-red-400',
-    avatarBorder: 'border-red-500/30',
-    type: 'Service Agreement',
-    typeBg: 'bg-blue-900/30',
-    typeText: 'text-blue-300',
-    typeBorder: 'border-blue-800/50',
-    status: 'Sent',
-    statusBg: 'bg-yellow-900/30',
-    statusText: 'text-yellow-300',
-    statusBorder: 'border-yellow-800/50',
-    date: 'Oct 15, 2023',
-  },
-]
+import { getToken, API_BASE } from '../services/api'
 
 const STATUS_CONFIG = {
   Draft:  { label: 'Draft',  pill: 'bg-[#2a2a2a] text-[#a3a3a3] border border-[#3a3a3a]',              text: 'text-[#a3a3a3]' },
@@ -138,22 +51,100 @@ function ContractStatusBadge({ status, onChange }) {
 }
 
 export default function ContractGenerator() {
-  const { user, clients, generations, sidebarCollapsed } = useApp()
+  const { sidebarCollapsed, generations, updateGeneration, updateGenerationStatus, deleteGeneration } = useApp()
 
-  const [view,       setView]       = useState('list')
-  const [editOpen,   setEditOpen]   = useState(false)
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [search,     setSearch]     = useState('')
-  const [statuses,   setStatuses]   = useState(() => STATIC_CONTRACTS.map(c => c.status))
-  const [fading,     setFading]     = useState(false)
+  const [view,        setView]        = useState('list')
+  const [editOpen,    setEditOpen]    = useState(false)
+  const [deleteOpen,  setDeleteOpen]  = useState(false)
+  const [selectedId,  setSelectedId]  = useState(null)   // MongoDB _id of selected contract
+  const [editForm,    setEditForm]    = useState({})
+  const [search,      setSearch]      = useState('')
+  const [fading,      setFading]      = useState(false)
+  const [downloading, setDownloading] = useState(null)
+  const [actionError, setActionError] = useState('')
+  const [editLoading, setEditLoading] = useState(false)
+  const [editError,   setEditError]   = useState('')
 
-  const filteredContracts = STATIC_CONTRACTS.filter(c => {
+  // Pull only 'Contract' type generations from the real DB
+  const contractList = useMemo(
+    () => generations.filter(g => (g.type || '').toLowerCase() === 'contract'),
+    [generations]
+  )
+
+  const filteredContracts = useMemo(() => {
     const q = search.toLowerCase()
-    return c.client.toLowerCase().includes(q) || c.title.toLowerCase().includes(q)
-  })
+    return contractList.filter(c =>
+      (c.title || '').toLowerCase().includes(q) ||
+      (c.subtitle || '').toLowerCase().includes(q)
+    )
+  }, [contractList, search])
 
-  function setStatus(i, val) {
-    setStatuses(prev => prev.map((s, idx) => idx === i ? val : s))
+  // Map DB generation status → contract STATUS_CONFIG key
+  function toContractStatus(dbStatus) {
+    const s = (dbStatus || '').toLowerCase()
+    if (s === 'paid' || s === 'signed') return 'Signed'
+    if (s === 'active' || s === 'sent') return 'Sent'
+    return 'Draft'
+  }
+
+  async function handleStatusChange(contractId, val) {
+    setActionError('')
+    // Map displayed status back to DB status
+    const dbStatus = val === 'Signed' ? 'paid' : val === 'Sent' ? 'active' : 'pending'
+    const result = await updateGenerationStatus(contractId, dbStatus)
+    if (!result.ok) setActionError(result.isNetworkError ? 'Server offline — status not saved.' : result.error)
+  }
+
+  async function handleDelete() {
+    if (!selectedId) return
+    setActionError('')
+    const result = await deleteGeneration(selectedId)
+    if (!result.ok) setActionError(result.isNetworkError ? 'Server offline — could not delete.' : result.error)
+    setDeleteOpen(false)
+    setSelectedId(null)
+  }
+
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+
+  async function handleDownload(c) {
+    setDownloading(c._id || c.title)
+    setActionError('')
+    try {
+      const payload = c.downloadPayload || {
+        contractTitle: c.title,
+        freelancerName: '',
+        freelancerEmail: '',
+        effectiveDate: c.date,
+        clientName: c.subtitle || c.title,
+        businessName: c.subtitle || c.title,
+        clientPhone: '',
+        businessType: c.subtitle || 'Service Agreement',
+        items: [{ desc: c.subtitle || 'Service', rate: 0, qty: 1 }],
+        deposit: 50, dueDate: 'Net 30',
+        milestones: false, lateFee: true, ipTransfer: true, portfolio: false,
+      }
+      const token = getToken()
+      const res = await fetch(`${API_BASE}/api/contracts/download`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) throw new Error(`Server ${res.status}`)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Contract-${c.title || 'document'}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setActionError(`Download failed: ${err?.message || 'Please ensure the backend is running.'}`)
+    } finally {
+      setDownloading(null)
+    }
   }
 
   function transitionTo(cb) {
@@ -207,7 +198,7 @@ export default function ContractGenerator() {
             </div>
             <button
               onClick={openEditor}
-              className="flex items-center gap-2 bg-[#22c55e] hover:bg-green-600 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-lg shadow-[#22c55e]/20 whitespace-nowrap"
+              className="h-11 px-5 rounded-lg bg-[#22c55e] hover:bg-[#16a34a] text-[#0a0a0a] font-bold transition-colors flex items-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.3)]"
             >
               <span className="material-symbols-outlined text-xl">add</span>
               <span className="hidden md:inline">New Contract</span>
@@ -233,14 +224,18 @@ export default function ContractGenerator() {
                 <tbody className="divide-y divide-[#2a2a2a] text-sm">
                   {filteredContracts.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-16 text-center text-[#888888] text-sm">No contracts found.</td>
+                      <td colSpan={6} className="px-6 py-16 text-center">
+                        <div className="flex flex-col items-center gap-3 text-slate-500">
+                          <span className="material-symbols-outlined text-4xl text-slate-600">gavel</span>
+                          <p className="text-sm font-medium">No contracts yet</p>
+                          <p className="text-xs">Click "New Contract" to build your first contract.</p>
+                        </div>
+                      </td>
                     </tr>
-                  ) : null}
-                  {filteredContracts.map((c) => {
-                    const origIdx = STATIC_CONTRACTS.indexOf(c)
-                    const s = statuses[origIdx]
+                  ) : filteredContracts.map((c) => {
+                    const contractStatus = toContractStatus(c.status)
                     return (
-                    <tr key={origIdx} className="group hover:bg-[#22c55e]/5 transition-colors">
+                    <tr key={c._id} className="group hover:bg-[#22c55e]/5 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="h-9 w-9 rounded-lg bg-[#22c55e]/10 border border-[#22c55e]/20 flex items-center justify-center shrink-0">
@@ -251,44 +246,45 @@ export default function ContractGenerator() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <div className={`h-7 w-7 rounded-full ${c.avatarBg} ${c.avatarText} flex items-center justify-center font-bold text-xs border ${c.avatarBorder}`}>
-                            {c.clientInitials}
+                          <div className="h-7 w-7 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-xs border border-purple-500/30">
+                            {(c.title || 'U').charAt(0).toUpperCase()}
                           </div>
-                          <span className="text-[#a3a3a3]">{c.client}</span>
+                          <span className="text-[#a3a3a3]">{c.subtitle || 'Service Agreement'}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${c.typeBg} ${c.typeText} border ${c.typeBorder}`}>
-                          {c.type}
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900/30 text-blue-300 border border-blue-800/50">
+                          {c.subtitle || 'Contract'}
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <ContractStatusBadge
-                          status={s}
-                          onChange={val => setStatus(origIdx, val)}
+                          status={contractStatus}
+                          onChange={val => handleStatusChange(c._id, val)}
                         />
                       </td>
-                      <td className="px-6 py-4 text-[#a3a3a3]">{c.date}</td>
+                      <td className="px-6 py-4 text-[#a3a3a3]">{c.date || new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
                             className="px-3 py-1.5 rounded-md bg-transparent border border-[#2a2a2a] text-[#a3a3a3] hover:text-[#22c55e] hover:border-[#22c55e] text-xs font-medium transition-colors"
-                            onClick={() => setEditOpen(true)}
+                            onClick={() => { setSelectedId(c._id); setEditForm({ title: c.title, subtitle: c.subtitle }); setEditOpen(true) }}
                           >
                             Edit
                           </button>
                           <button
                             className="px-3 py-1.5 rounded-md bg-transparent border border-[#2a2a2a] text-[#a3a3a3] hover:text-[#ef4444] hover:border-[#ef4444] text-xs font-medium transition-colors"
-                            onClick={() => setDeleteOpen(true)}
+                            onClick={() => { setSelectedId(c._id); setDeleteOpen(true) }}
                           >
                             Delete
                           </button>
                           <button
-                            className="px-3 py-1.5 rounded-md bg-transparent border border-[#2a2a2a] text-[#a3a3a3] hover:text-[#22c55e] hover:border-[#22c55e] text-xs font-medium transition-colors flex items-center gap-1"
-                            onClick={() => {}}
+                            className="px-3 py-1.5 rounded-md bg-transparent border border-[#2a2a2a] text-[#a3a3a3] hover:text-[#22c55e] hover:border-[#22c55e] text-xs font-medium transition-colors flex items-center gap-1 disabled:opacity-50"
+                            onClick={() => handleDownload(c)}
+                            disabled={downloading === c._id}
                           >
                             <span className="material-symbols-outlined text-[14px] text-[#22c55e]">download</span>
-                            <span>Download</span>
+                            <span>{downloading === c._id ? 'Downloading…' : 'Download'}</span>
                           </button>
                         </div>
                       </td>
@@ -302,18 +298,14 @@ export default function ContractGenerator() {
             {/* Pagination */}
             <div className="border-t border-[#2a2a2a] px-6 py-4 flex items-center justify-between bg-[#1a1a1a]">
               <div className="text-xs text-[#a3a3a3]">
-                Showing <span className="text-white font-semibold">1</span> to <span className="text-white font-semibold">5</span> of <span className="text-white font-semibold">12</span> contracts
+                Showing <span className="text-white font-semibold">{filteredContracts.length}</span> contract{filteredContracts.length !== 1 ? 's' : ''}
               </div>
-              <div className="flex items-center gap-2">
-                <button className="h-8 w-8 flex items-center justify-center rounded-lg border border-[#2a2a2a] text-[#a3a3a3] hover:bg-[#2a2a2a] hover:text-white transition-colors disabled:opacity-50" disabled>
-                  <span className="material-symbols-outlined text-sm">chevron_left</span>
-                </button>
-                <button className="h-8 w-8 flex items-center justify-center rounded-lg bg-[#22c55e] text-white border border-[#22c55e] text-sm font-bold">1</button>
-                <button className="h-8 w-8 flex items-center justify-center rounded-lg border border-[#2a2a2a] text-[#a3a3a3] hover:bg-[#2a2a2a] hover:text-white transition-colors text-sm">2</button>
-                <button className="h-8 w-8 flex items-center justify-center rounded-lg border border-[#2a2a2a] text-[#a3a3a3] hover:bg-[#2a2a2a] hover:text-white transition-colors">
-                  <span className="material-symbols-outlined text-sm">chevron_right</span>
-                </button>
-              </div>
+              {actionError && (
+                <div className="flex items-center gap-1.5 text-xs text-amber-400">
+                  <span className="material-symbols-outlined text-[14px]">warning</span>
+                  {actionError}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -336,20 +328,20 @@ export default function ContractGenerator() {
             <div className="px-6 py-6 space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-[#a3a3a3] mb-1.5" htmlFor="edit-title">Contract Title</label>
-                <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="edit-title" type="text" defaultValue="Web Development Agreement" />
+                <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="edit-title" type="text" value={editForm.title || ''} onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))} />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-[#a3a3a3] mb-1.5" htmlFor="edit-client">Client Name</label>
-                <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="edit-client" type="text" defaultValue="John Doe" />
+                <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="edit-client" type="text" value={editForm.client || ''} onChange={e => setEditForm(p => ({ ...p, client: e.target.value }))} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-[#a3a3a3] mb-1.5" htmlFor="edit-type">Contract Type</label>
-                  <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="edit-type" type="text" defaultValue="Service Agreement" />
+                  <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="edit-type" type="text" value={editForm.type || ''} onChange={e => setEditForm(p => ({ ...p, type: e.target.value }))} />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-[#a3a3a3] mb-1.5" htmlFor="edit-status">Status</label>
-                  <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="edit-status" type="text" defaultValue="Signed" />
+                  <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="edit-status" type="text" value={editForm.status || ''} onChange={e => setEditForm(p => ({ ...p, status: e.target.value }))} />
                 </div>
               </div>
             </div>
@@ -361,10 +353,27 @@ export default function ContractGenerator() {
                 Cancel
               </button>
               <button
-                className="px-4 py-2 bg-[#22c55e] text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-colors shadow-md shadow-[#22c55e]/20"
-                onClick={() => setEditOpen(false)}
+                className="px-4 py-2 bg-[#22c55e] text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-colors shadow-md shadow-[#22c55e]/20 flex items-center gap-1.5 disabled:opacity-70"
+                disabled={editLoading}
+                onClick={async () => {
+                  if (!editForm.title?.trim()) { setEditError('Title is required.'); return }
+                  setEditError('')
+                  setEditLoading(true)
+                  const result = await updateGeneration(selectedId, {
+                    title:    editForm.title.trim(),
+                    subtitle: editForm.client?.trim() || editForm.subtitle || '',
+                  })
+                  setEditLoading(false)
+                  if (!result.ok) {
+                    setEditError(result.isNetworkError ? 'Server offline — changes not saved.' : result.error || 'Save failed.')
+                    return
+                  }
+                  setEditOpen(false)
+                  setEditError('')
+                }}
               >
-                Save Changes
+                {editLoading && <span className="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>}
+                {editLoading ? 'Saving…' : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -394,7 +403,7 @@ export default function ContractGenerator() {
                 </button>
                 <button
                   className="px-4 py-2 bg-[#ef4444] text-white rounded-lg text-sm font-semibold hover:bg-red-600 transition-colors shadow-md shadow-red-500/20 w-28"
-                  onClick={() => setDeleteOpen(false)}
+                  onClick={handleDelete}
                 >
                   Delete
                 </button>

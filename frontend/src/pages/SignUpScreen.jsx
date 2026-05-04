@@ -16,6 +16,8 @@ export default function SignUpScreen() {
   const [visible, setVisible] = useState(false)
   const [errors, setErrors] = useState({})
   const [authError, setAuthError] = useState('')
+  const [isNetworkError, setIsNetworkError] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 10)
@@ -32,7 +34,7 @@ export default function SignUpScreen() {
     setTimeout(() => navigate(path), 220)
   }
 
-  function handleSignUp(e) {
+  async function handleSignUp(e) {
     e.preventDefault()
     const errs = {}
     if (!fullName.trim()) errs.fullName = 'Full name is required.'
@@ -44,12 +46,16 @@ export default function SignUpScreen() {
     else if (password !== confirmPassword) errs.confirmPassword = 'Passwords do not match.'
     if (Object.keys(errs).length) { setErrors(errs); return }
     setErrors({})
-    const result = signUp({ name: fullName.trim(), email: email.trim(), password })
+    setAuthError('')
+    setIsNetworkError(false)
+    setIsLoading(true)
+    const result = await signUp({ name: fullName.trim(), email: email.trim(), password })
+    setIsLoading(false)
     if (!result.ok) {
+      setIsNetworkError(!!result.isNetworkError)
       setAuthError(result.error || 'Sign up failed.')
       return
     }
-    setAuthError('')
     const destination = intendedDestination || '/dashboard'
     setIntendedDestination(null)
     navigateWithFade(destination)
@@ -149,8 +155,15 @@ export default function SignUpScreen() {
             {/* Form */}
             <form className="flex flex-col gap-5" onSubmit={handleSignUp}>
               {authError && (
-                <div className="bg-[#ef4444]/10 border border-[#ef4444]/30 rounded-lg px-3 py-2 text-xs text-[#ef4444]">
-                  {authError}
+                <div className={`flex items-start gap-2 rounded-lg px-3 py-2 text-xs border ${
+                  isNetworkError
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                    : 'bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]'
+                }`}>
+                  <span className="material-symbols-outlined text-[15px] mt-0.5 shrink-0">
+                    {isNetworkError ? 'wifi_off' : 'error'}
+                  </span>
+                  <span>{authError}</span>
                 </div>
               )}
 
@@ -245,9 +258,15 @@ export default function SignUpScreen() {
               {/* Submit */}
               <button
                 type="submit"
-                className="flex items-center justify-center w-full h-12 mt-2 rounded-lg bg-[#22c55e] text-white font-bold text-base hover:bg-[#22c55e]/90 focus:ring-4 focus:ring-[#22c55e]/30 transition-all duration-200 shadow-lg shadow-[#22c55e]/20"
+                disabled={isLoading}
+                className="flex items-center justify-center gap-2 w-full h-12 mt-2 rounded-lg bg-[#22c55e] text-white font-bold text-base hover:bg-[#22c55e]/90 focus:ring-4 focus:ring-[#22c55e]/30 transition-all duration-200 shadow-lg shadow-[#22c55e]/20 disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                Sign Up
+                {isLoading ? (
+                  <>
+                    <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                    Creating account…
+                  </>
+                ) : 'Sign Up'}
               </button>
             </form>
 

@@ -23,6 +23,8 @@ router.post('/download', (req, res) => {
     portfolio = false,
   } = req.body
 
+  try {
+
   const total = items.reduce(
     (sum, it) => sum + (parseFloat(it.rate) || 0) * (parseInt(it.qty) || 0),
     0
@@ -35,6 +37,10 @@ router.post('/download', (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
 
   const doc = new PDFDocument({ margin: 50, size: 'A4' })
+  doc.on('error', (err) => {
+    console.error('[PDF Error - Contracts]', err)
+    if (!res.headersSent) res.status(500).json({ error: 'PDF generation failed.' })
+  })
   doc.pipe(res)
 
   const BLACK     = '#0a0a0a'
@@ -193,6 +199,11 @@ router.post('/download', (req, res) => {
      })
 
   doc.end()
+
+  } catch (err) {
+    console.error('[contracts.js] unhandled error', err)
+    if (!res.headersSent) res.status(500).json({ error: 'Server error generating contract' })
+  }
 })
 
 module.exports = router

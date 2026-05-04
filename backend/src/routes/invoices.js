@@ -26,6 +26,8 @@ router.post('/download', (req, res) => {
     notes = '',
   } = req.body
 
+  try {
+
   // Compute totals
   const subtotal = items.reduce(
     (sum, item) => sum + (parseFloat(item.rate) || 0) * (parseInt(item.qty) || 0),
@@ -41,6 +43,10 @@ router.post('/download', (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
 
   const doc = new PDFDocument({ margin: 50, size: 'A4' })
+  doc.on('error', (err) => {
+    console.error('[PDF Error - Invoices]', err)
+    if (!res.headersSent) res.status(500).json({ error: 'PDF generation failed.' })
+  })
   doc.pipe(res)
 
   // ── Colors ──
@@ -186,6 +192,11 @@ router.post('/download', (req, res) => {
      })
 
   doc.end()
+
+  } catch (err) {
+    console.error('[invoices.js] unhandled error', err)
+    if (!res.headersSent) res.status(500).json({ error: 'Server error generating invoice' })
+  }
 })
 
 module.exports = router

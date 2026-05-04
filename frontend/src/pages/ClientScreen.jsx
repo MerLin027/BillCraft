@@ -1,54 +1,44 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 import Sidebar from '../components/Sidebar'
-import { STATIC_CLIENTS } from '../data/staticClients'
-
 
 export default function ClientScreen() {
-  const { user, clients, addClient, generations, sidebarCollapsed } = useApp()
+  const { clients, addClient, updateClient, deleteClient, sidebarCollapsed } = useApp()
 
-  const [addOpen,    setAddOpen]    = useState(false)
-  const [editOpen,   setEditOpen]   = useState(false)
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [search,     setSearch]     = useState('')
-  const [currentPage, setCurrentPage] = useState(1)
-  const [addErrors, setAddErrors] = useState({})
+  const [addOpen,        setAddOpen]        = useState(false)
+  const [editOpen,       setEditOpen]       = useState(false)
+  const [deleteOpen,     setDeleteOpen]     = useState(false)
+  const [selectedClient, setSelectedClient] = useState(null)
+  const [editForm,       setEditForm]       = useState({})
+  const [search,         setSearch]         = useState('')
+  const [currentPage,    setCurrentPage]    = useState(1)
+  const [addErrors,      setAddErrors]      = useState({})
   const [newClient, setNewClient] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    business: '',
-    industry: '',
+    name: '', email: '', phone: '', business: '', industry: '',
   })
   const PER_PAGE = 8
 
-  const contextClients = clients.map(c => ({
-    name: c.name || '',
-    email: c.email || '',
-    phone: c.phone || '-',
-    business: c.business || '-',
-    industry: c.industry || 'General',
-    date: c.dateAdded || '-',
-    initials: (c.name || 'NA')
-      .split(' ')
-      .filter(Boolean)
-      .slice(0, 2)
-      .map(s => s[0]?.toUpperCase())
-      .join('') || 'NA',
-    avatarBg: 'bg-[#22c55e]/15',
-    avatarText: 'text-[#22c55e]',
+  // F-6+F-7: Map MongoDB clients — use _id throughout; no static demo data merge
+  const mappedClients = clients.map(c => ({
+    _id:          c._id,
+    name:         c.name         || '',
+    email:        c.email        || '',
+    phone:        c.phone        || '',
+    business:     c.business     || '',
+    industry:     c.industry     || 'General',
+    date:         c.dateAdded || (c.createdAt ? new Date(c.createdAt).toLocaleDateString() : '-'),
+    initials:     (c.name || 'NA').split(' ').filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase()).join('') || 'NA',
+    avatarBg:     'bg-[#22c55e]/15',
+    avatarText:   'text-[#22c55e]',
     avatarBorder: 'border-[#22c55e]/20',
-    industryBg: 'bg-blue-500/10',
+    industryBg:   'bg-blue-500/10',
     industryText: 'text-blue-400',
-    industryBorder: 'border-blue-500/20',
-    __context: true,
+    industryBorder:'border-blue-500/20',
   }))
-  const mergedClients = [...contextClients, ...STATIC_CLIENTS]
 
-  const filteredClients = mergedClients.filter(c =>
+  const filteredClients = mappedClients.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase())
   )
-
   const totalPages   = Math.max(1, Math.ceil(filteredClients.length / PER_PAGE))
   const pageStart    = Math.min((currentPage - 1) * PER_PAGE + 1, filteredClients.length || 1)
   const pageEnd      = Math.min(currentPage * PER_PAGE, filteredClients.length)
@@ -59,33 +49,28 @@ export default function ClientScreen() {
     setAddErrors({})
   }
 
-  function handleAddClient() {
+  // F-6: async add — calls real API via AppContext
+  async function handleAddClient() {
     const errs = {}
-    if (!newClient.name.trim()) errs.name = 'Client name is required.'
+    if (!newClient.name.trim())  errs.name  = 'Client name is required.'
     if (!newClient.email.trim()) errs.email = 'Email is required.'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newClient.email)) errs.email = 'Enter a valid email address.'
-    if (Object.keys(errs).length) {
-      setAddErrors(errs)
-      return
-    }
-    addClient({
-      name: newClient.name.trim(),
-      email: newClient.email.trim(),
-      phone: newClient.phone.trim(),
+    if (Object.keys(errs).length) { setAddErrors(errs); return }
+    const result = await addClient({
+      name:     newClient.name.trim(),
+      email:    newClient.email.trim(),
+      phone:    newClient.phone.trim(),
       business: newClient.business.trim(),
       industry: newClient.industry.trim(),
     })
+    if (!result.ok) { setAddErrors({ name: result.error }); return }
     setAddOpen(false)
     resetAddForm()
   }
 
   return (
     <div className="bg-[#0a0a0a] text-[#f5f5f5] font-display antialiased overflow-hidden flex h-screen w-full flex-row">
-
-      {/* Sidebar */}
       <Sidebar active="clients" />
-
-      {/* Main */}
       <main className="flex-1 flex flex-col h-full relative bg-[#0a0a0a]" style={{ marginLeft: sidebarCollapsed ? '60px' : '260px', transition: 'margin-left 300ms ease-in-out' }}>
 
         {/* Header */}
@@ -108,7 +93,7 @@ export default function ClientScreen() {
               />
             </div>
             <button
-              className="flex items-center gap-2 bg-[#22c55e] hover:bg-green-600 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-lg shadow-[#22c55e]/20 whitespace-nowrap"
+              className="h-11 px-5 rounded-lg bg-[#22c55e] hover:bg-[#16a34a] text-[#0a0a0a] font-bold transition-colors flex items-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.3)]"
               onClick={() => setAddOpen(true)}
             >
               <span className="material-symbols-outlined text-xl">add</span>
@@ -117,7 +102,7 @@ export default function ClientScreen() {
           </div>
         </header>
 
-        {/* Table area */}
+        {/* Table */}
         <div className="flex-1 overflow-y-auto p-4 md:px-8 md:pt-5 md:pb-8">
           <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl shadow-lg overflow-hidden">
             <div className="overflow-x-auto">
@@ -137,25 +122,17 @@ export default function ClientScreen() {
                   {filteredClients.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="px-6 py-16 text-center text-[#888888] text-sm">
-                        No clients found.
+                        {clients.length === 0 ? 'No clients yet. Add your first client!' : 'No clients match your search.'}
                       </td>
                     </tr>
                   ) : (
-                    pagedClients.map((c, i) => (
-                      <tr key={i} className="group hover:bg-[#22c55e]/5 transition-colors">
+                    pagedClients.map((c) => (
+                      <tr key={c._id} className="group hover:bg-[#22c55e]/5 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            {c.img ? (
-                              <img
-                                className="h-9 w-9 rounded-full object-cover border border-[#2a2a2a]"
-                                alt={c.name}
-                                src={c.img}
-                              />
-                            ) : (
-                              <div className={`h-9 w-9 rounded-full ${c.avatarBg} ${c.avatarText} flex items-center justify-center font-bold text-xs border ${c.avatarBorder}`}>
-                                {c.initials}
-                              </div>
-                            )}
+                            <div className={`h-9 w-9 rounded-full ${c.avatarBg} ${c.avatarText} flex items-center justify-center font-bold text-xs border ${c.avatarBorder}`}>
+                              {c.initials}
+                            </div>
                             <div className="font-bold text-white">{c.name}</div>
                           </div>
                         </td>
@@ -172,13 +149,17 @@ export default function ClientScreen() {
                           <div className="flex items-center justify-end gap-2">
                             <button
                               className="px-3 py-1.5 rounded-md bg-transparent border border-[#2a2a2a] text-[#a3a3a3] hover:text-[#22c55e] hover:border-[#22c55e] text-xs font-medium transition-colors"
-                              onClick={() => setEditOpen(true)}
+                              onClick={() => {
+                                setSelectedClient(c)
+                                setEditForm({ name: c.name, email: c.email, phone: c.phone, business: c.business, industry: c.industry })
+                                setEditOpen(true)
+                              }}
                             >
                               Edit
                             </button>
                             <button
                               className="px-3 py-1.5 rounded-md bg-transparent border border-[#2a2a2a] text-[#a3a3a3] hover:text-[#ef4444] hover:border-[#ef4444] text-xs font-medium transition-colors"
-                              onClick={() => setDeleteOpen(true)}
+                              onClick={() => { setSelectedClient(c); setDeleteOpen(true) }}
                             >
                               Delete
                             </button>
@@ -231,10 +212,7 @@ export default function ClientScreen() {
       {/* ── Add Modal ── */}
       {addOpen && (
         <div className="fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
-          <div
-            className="absolute w-full h-full bg-black/80 backdrop-blur-sm"
-            onClick={() => { setAddOpen(false); resetAddForm() }}
-          />
+          <div className="absolute w-full h-full bg-black/80 backdrop-blur-sm" onClick={() => { setAddOpen(false); resetAddForm() }} />
           <div className="relative bg-[#1a1a1a] w-full md:max-w-lg mx-auto rounded-xl shadow-2xl z-50 overflow-y-auto max-h-[90vh] border border-[#2a2a2a]">
             <div className="flex justify-between items-center py-4 px-6 border-b border-[#2a2a2a]">
               <p className="text-xl font-bold text-white">Add Client</p>
@@ -269,30 +247,17 @@ export default function ClientScreen() {
               </div>
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 bg-[#111111] rounded-b-xl border-t border-[#2a2a2a]">
-              <button
-                className="px-4 py-2 bg-transparent border border-[#2a2a2a] text-[#a3a3a3] rounded-lg text-sm font-semibold hover:bg-[#0a0a0a] hover:text-white transition-colors"
-                onClick={() => { setAddOpen(false); resetAddForm() }}
-              >
-                Cancel
-              </button>
-              <button
-                className="px-4 py-2 bg-[#22c55e] text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-colors shadow-md shadow-[#22c55e]/20"
-                onClick={handleAddClient}
-              >
-                Add Client
-              </button>
+              <button className="px-4 py-2 bg-transparent border border-[#2a2a2a] text-[#a3a3a3] rounded-lg text-sm font-semibold hover:bg-[#0a0a0a] hover:text-white transition-colors" onClick={() => { setAddOpen(false); resetAddForm() }}>Cancel</button>
+              <button className="px-4 py-2 bg-[#22c55e] text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-colors shadow-md shadow-[#22c55e]/20" onClick={handleAddClient}>Add Client</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Edit Modal ── */}
+      {/* ── Edit Modal (F-6) ── */}
       {editOpen && (
         <div className="fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
-          <div
-            className="absolute w-full h-full bg-black/80 backdrop-blur-sm"
-            onClick={() => setEditOpen(false)}
-          />
+          <div className="absolute w-full h-full bg-black/80 backdrop-blur-sm" onClick={() => setEditOpen(false)} />
           <div className="relative bg-[#1a1a1a] w-full md:max-w-lg mx-auto rounded-xl shadow-2xl z-50 overflow-y-auto max-h-[90vh] border border-[#2a2a2a]">
             <div className="flex justify-between items-center py-4 px-6 border-b border-[#2a2a2a]">
               <p className="text-xl font-bold text-white">Edit Client</p>
@@ -303,37 +268,35 @@ export default function ClientScreen() {
             <div className="px-6 py-6 space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-[#a3a3a3] mb-1.5" htmlFor="edit-name">Client Name</label>
-                <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="edit-name" type="text" defaultValue="John Doe" />
+                <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="edit-name" type="text" value={editForm.name || ''} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-[#a3a3a3] mb-1.5" htmlFor="edit-email">Email Address</label>
-                <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="edit-email" type="email" defaultValue="john.doe@acmecorp.com" />
+                <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="edit-email" type="email" value={editForm.email || ''} onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))} />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-[#a3a3a3] mb-1.5" htmlFor="edit-phone">Phone Number</label>
-                <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="edit-phone" type="tel" defaultValue="+1 (555) 123-4567" />
+                <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="edit-phone" type="tel" value={editForm.phone || ''} onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-[#a3a3a3] mb-1.5" htmlFor="edit-business">Business Name</label>
-                  <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="edit-business" type="text" defaultValue="Acme Corp" />
+                  <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="edit-business" type="text" value={editForm.business || ''} onChange={e => setEditForm(p => ({ ...p, business: e.target.value }))} />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-[#a3a3a3] mb-1.5" htmlFor="edit-type">Business Type</label>
-                  <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="edit-type" type="text" defaultValue="Technology" />
+                  <input className="w-full px-3 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all text-sm" id="edit-type" type="text" value={editForm.industry || ''} onChange={e => setEditForm(p => ({ ...p, industry: e.target.value }))} />
                 </div>
               </div>
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 bg-[#111111] rounded-b-xl border-t border-[#2a2a2a]">
-              <button
-                className="px-4 py-2 bg-transparent border border-[#2a2a2a] text-[#a3a3a3] rounded-lg text-sm font-semibold hover:bg-[#0a0a0a] hover:text-white transition-colors"
-                onClick={() => setEditOpen(false)}
-              >
-                Cancel
-              </button>
+              <button className="px-4 py-2 bg-transparent border border-[#2a2a2a] text-[#a3a3a3] rounded-lg text-sm font-semibold hover:bg-[#0a0a0a] hover:text-white transition-colors" onClick={() => setEditOpen(false)}>Cancel</button>
               <button
                 className="px-4 py-2 bg-[#22c55e] text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-colors shadow-md shadow-[#22c55e]/20"
-                onClick={() => setEditOpen(false)}
+                onClick={async () => {
+                  if (selectedClient?._id) await updateClient(selectedClient._id, editForm)
+                  setEditOpen(false)
+                }}
               >
                 Save Changes
               </button>
@@ -342,30 +305,28 @@ export default function ClientScreen() {
         </div>
       )}
 
-      {/* ── Delete Modal ── */}
+      {/* ── Delete Modal (F-7) ── */}
       {deleteOpen && (
         <div className="fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
-          <div
-            className="absolute w-full h-full bg-black/80 backdrop-blur-sm"
-            onClick={() => setDeleteOpen(false)}
-          />
+          <div className="absolute w-full h-full bg-black/80 backdrop-blur-sm" onClick={() => setDeleteOpen(false)} />
           <div className="relative bg-[#1a1a1a] w-full md:max-w-md mx-auto rounded-xl shadow-2xl z-50 border border-[#2a2a2a]">
             <div className="p-6 text-center">
               <div className="w-14 h-14 rounded-full bg-red-900/20 flex items-center justify-center mx-auto mb-4 border border-red-900/30">
                 <span className="material-symbols-outlined text-3xl text-red-500">warning</span>
               </div>
               <h3 className="text-xl font-bold text-white mb-2">Are you sure?</h3>
-              <p className="text-[#a3a3a3] text-sm mb-6">This will remove the client record but not their associated documents.</p>
+              <p className="text-[#a3a3a3] text-sm mb-6">
+                Delete <span className="text-white font-semibold">{selectedClient?.name}</span>? This cannot be undone.
+              </p>
               <div className="flex justify-center gap-3">
-                <button
-                  className="px-4 py-2 bg-transparent border border-[#2a2a2a] text-[#a3a3a3] rounded-lg text-sm font-semibold hover:bg-[#0a0a0a] hover:text-white transition-colors w-28"
-                  onClick={() => setDeleteOpen(false)}
-                >
-                  Cancel
-                </button>
+                <button className="px-4 py-2 bg-transparent border border-[#2a2a2a] text-[#a3a3a3] rounded-lg text-sm font-semibold hover:bg-[#0a0a0a] hover:text-white transition-colors w-28" onClick={() => setDeleteOpen(false)}>Cancel</button>
                 <button
                   className="px-4 py-2 bg-[#ef4444] text-white rounded-lg text-sm font-semibold hover:bg-red-600 transition-colors shadow-md shadow-red-500/20 w-28"
-                  onClick={() => setDeleteOpen(false)}
+                  onClick={async () => {
+                    if (selectedClient?._id) await deleteClient(selectedClient._id)
+                    setDeleteOpen(false)
+                    setSelectedClient(null)
+                  }}
                 >
                   Delete
                 </button>
@@ -374,7 +335,6 @@ export default function ClientScreen() {
           </div>
         </div>
       )}
-
     </div>
   )
 }

@@ -2,17 +2,9 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 
-export default function HomeScreen() {
-  const navigate = useNavigate()
-  const { user, clients, generations, setIntendedDestination } = useApp()
+function Clock() {
   const [clock, setClock] = useState('--:--:--')
-  const [fading, setFading] = useState(false)
-
-  function navigateWithFade(path) {
-    setFading(true)
-    setTimeout(() => navigate(path), 220)
-  }
-
+  
   useEffect(() => {
     function updateClock() {
       const now = new Date()
@@ -27,6 +19,19 @@ export default function HomeScreen() {
     const interval = setInterval(updateClock, 1000)
     return () => clearInterval(interval)
   }, [])
+  
+  return <>{clock}</>
+}
+
+export default function HomeScreen() {
+  const navigate = useNavigate()
+  const { user, clients, generations, setIntendedDestination } = useApp()
+  const [fading, setFading] = useState(false)
+
+  function navigateWithFade(path) {
+    setFading(true)
+    setTimeout(() => navigate(path), 220)
+  }
 
   return (
     <div className="bg-[#0a0a0a] h-screen overflow-hidden">
@@ -43,7 +48,7 @@ export default function HomeScreen() {
         <div className="flex items-center gap-3 text-white">
           <span className="material-symbols-outlined text-[#22c55e] text-2xl">schedule</span>
           <div className="font-mono text-lg md:text-xl font-medium tracking-wide text-white">
-            {clock}
+            <Clock />
           </div>
         </div>
         <div className="flex items-center gap-4">

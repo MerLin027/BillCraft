@@ -44,13 +44,16 @@ export default function Sidebar({ active }) {
   function navTo(path) {
     if (location.pathname === path) return
     setNavigating(true)
-    setTimeout(() => navigate(path), 200)
+    setTimeout(() => navigate(path), 300)
   }
 
   function handleLogout() {
     setMenuOpen(false)
-    logout()
-    navTo('/home')
+    setNavigating(true)
+    setTimeout(() => {
+      navigate('/', { replace: true })
+      setTimeout(() => logout(), 10)
+    }, 300)
   }
 
   const sidebarWidth = sidebarCollapsed ? 60 : 260
@@ -67,7 +70,7 @@ export default function Sidebar({ active }) {
         bottom: 0,
         background: '#0a0a0a',
         opacity: navigating ? 1 : 0,
-        transition: 'opacity 200ms ease-in-out',
+        transition: 'opacity 300ms ease-in-out',
         pointerEvents: navigating ? 'all' : 'none',
         zIndex: 40,
       }}
@@ -125,7 +128,7 @@ export default function Sidebar({ active }) {
         {/* Nav links */}
         <nav className="flex flex-col gap-1 p-2 flex-grow" style={{ padding: sidebarCollapsed ? '8px 0' : '16px' }}>
           {NAV_ITEMS.map(({ label, icon, path, filled }) => {
-            const isActive = path === '/' + active
+            const isActive = location.pathname === path || path === '/' + active
             return (
               <button
                 key={path}
@@ -141,7 +144,7 @@ export default function Sidebar({ active }) {
                   background: isActive ? 'rgba(34,197,94,0.15)' : 'transparent',
                   border: 'none',
                   cursor: 'pointer',
-                  transition: 'background 200ms ease-in-out',
+                  transition: 'background 300ms ease-in-out',
                 } : undefined}
                 className={!sidebarCollapsed ? `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ease-in-out w-full text-left ${
                   isActive

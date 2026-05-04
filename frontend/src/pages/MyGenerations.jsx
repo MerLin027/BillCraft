@@ -3,83 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import Sidebar from '../components/Sidebar'
 
-const API_BASE = ''
-
-// ── Static demo data ──────────────────────────────────────────────────────────
-const INITIAL_ROWS = [
-  {
-    id: 'INV-001',
-    title: 'Acme Corp Redesign',
-    subtitle: 'Web Development',
-    type: 'Invoice',
-    typeIcon: 'receipt_long',
-    date: 'Oct 24, 2023',
-    dateRed: false,
-    amount: '$4,500.00',
-    status: 'paid',
-    statusOptions: ['paid', 'pending', 'overdue'],
-  },
-  {
-    id: 'CNT-042',
-    title: 'Stark Industries Retainer',
-    subtitle: 'Consulting',
-    type: 'Contract',
-    typeIcon: 'contract',
-    date: 'Oct 20, 2023',
-    dateRed: false,
-    amount: '-',
-    status: 'active',
-    statusOptions: ['active', 'expired'],
-  },
-  {
-    id: 'INV-002',
-    title: 'Wayne Enterprises App',
-    subtitle: 'Mobile Design',
-    type: 'Invoice',
-    typeIcon: 'receipt_long',
-    date: 'Oct 15, 2023',
-    dateRed: false,
-    amount: '$12,250.00',
-    status: 'pending',
-    statusOptions: ['paid', 'pending', 'overdue'],
-  },
-  {
-    id: 'CNT-039',
-    title: 'Globex Corp NDA',
-    subtitle: 'Legal',
-    type: 'Contract',
-    typeIcon: 'contract',
-    date: 'Sep 30, 2023',
-    dateRed: false,
-    amount: '-',
-    status: 'expired',
-    statusOptions: ['active', 'expired'],
-  },
-  {
-    id: 'INV-003',
-    title: 'Umbrella Corp Audit',
-    subtitle: 'Security',
-    type: 'Invoice',
-    typeIcon: 'receipt_long',
-    date: 'Sep 01, 2023',
-    dateRed: true,
-    amount: '$2,100.00',
-    status: 'overdue',
-    statusOptions: ['paid', 'pending', 'overdue'],
-  },
-  {
-    id: 'INV-004',
-    title: 'Cyberdyne Systems AI',
-    subtitle: 'Development',
-    type: 'Invoice',
-    typeIcon: 'receipt_long',
-    date: 'Aug 15, 2023',
-    dateRed: false,
-    amount: '$8,500.00',
-    status: 'paid',
-    statusOptions: ['paid', 'pending', 'overdue'],
-  },
-]
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
 // ── Status badge config — filled pills ────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -163,28 +87,26 @@ function StatusBadge({ status, options, onChange }) {
 // ── Main component ────────────────────────────────────────────────────────────
 export default function MyGenerations() {
   const navigate = useNavigate()
-  const { user, generations, updateGenerationStatus, sidebarCollapsed } = useApp()
+  const { user, generations, updateGenerationStatus, deleteGeneration, sidebarCollapsed } = useApp()
   const [downloadError, setDownloadError] = useState('')
   const [busyDownloadId, setBusyDownloadId] = useState('')
 
-  // Map context generations to row shape and prepend to static demo rows
-  const contextRows = generations.map(g => ({
-    id:            String(g.id),
+  // F-4: Map MongoDB generations — use _id; no static demo merge
+  const allRows = generations.map(g => ({
+    _id:           g._id,
+    id:            g.invoiceNumber || g._id,  // display label
     title:         g.title,
     subtitle:      g.subtitle || 'Invoice',
     type:          g.type || 'Invoice',
     typeIcon:      g.typeIcon || 'receipt_long',
-    date:          g.date || new Date(g.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    date:          g.date || (g.createdAt ? new Date(g.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'),
     dateRed:       false,
     amount:        toAmountFromPayload(g),
-    status:        (g.status?.toLowerCase() === 'active' ? 'pending' : g.status?.toLowerCase() === 'expired' ? 'overdue' : g.status?.toLowerCase()) || 'pending',
-    statusOptions: ['paid', 'pending', 'overdue'],
+    status:        g.status?.toLowerCase() || 'pending',
+    statusOptions: g.type === 'Contract' ? ['active', 'expired'] : ['paid', 'pending', 'overdue'],
     downloadKind:  g.downloadKind || ((g.type || '').toLowerCase() === 'contract' ? 'contract' : 'invoice'),
     downloadPayload: g.downloadPayload,
   }))
-
-  const [rows, setRows] = useState(INITIAL_ROWS)
-  const allRows = [...contextRows, ...rows]
   const [search, setSearch] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const PER_PAGE = 8
@@ -197,14 +119,11 @@ export default function MyGenerations() {
   const pageEnd     = Math.min(currentPage * PER_PAGE, filteredRows.length)
   const pagedRows   = filteredRows.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE)
 
-  function handleStatusChange(rowId, newStatus) {
-    const asNumber = Number(rowId)
-    const isContextRow = Number.isFinite(asNumber) && generations.some(g => g.id === asNumber)
-    if (isContextRow) {
-      updateGenerationStatus(asNumber, newStatus)
-      return
+  // F-4: update status via API using MongoDB _id
+  async function handleStatusChange(row, newStatus) {
+    if (row._id) {
+      await updateGenerationStatus(row._id, newStatus)
     }
-    setRows(prev => prev.map(r => (r.id === rowId ? { ...r, status: newStatus } : r)))
   }
 
   async function handleDownload(row, format) {
@@ -359,7 +278,7 @@ export default function MyGenerations() {
                         <StatusBadge
                           status={row.status}
                           options={row.statusOptions}
-                          onChange={newStatus => handleStatusChange(row.id, newStatus)}
+                          onChange={newStatus => handleStatusChange(row, newStatus)}
                         />
                       </td>
 

@@ -1,14 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import { useApp } from '../context/AppContext'
+import Checkbox from '../components/Checkbox'
 
-const API_BASE = ''
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
-const SUGGESTED_CLIENTS = [
-  { name: 'Acme Corp',    email: 'contact@acmecorp.com',  businessName: 'Acme Corporation',      phone: '+1 (555) 123-4567', type: 'corporation' },
-  { name: 'Globex Inc.',  email: 'billing@globex.com',    businessName: 'Globex International',   phone: '+1 (555) 987-6543', type: 'llc' },
-  { name: 'Soylent Corp', email: 'people@soylent.green',  businessName: 'Soylent Corporation',    phone: '+1 (555) 000-1111', type: 'partnership' },
-]
 
 const inputClass =
   'w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-[#22c55e] focus:border-transparent outline-none transition-all placeholder:text-slate-600 text-sm'
@@ -21,14 +17,21 @@ const sectionLabel = (icon, text) => (
 )
 
 export default function ContractBuilderEditor({ onBack }) {
-  const { sidebarCollapsed, addGeneration } = useApp()
+  const { sidebarCollapsed, addGeneration, clients, user } = useApp()
+  // F-9: only real API clients — no static demo data
+  const allClients = clients.map(c => ({
+    name: c.name || '', email: c.email || '',
+    businessName: c.business || c.name || '',
+    phone: c.phone || '', type: c.industry || '',
+  }))
+
   const [downloading, setDownloading] = useState(false)
   const [downloadingWord, setDownloadingWord] = useState(false)
   const [contractError, setContractError] = useState('')
   const [savedToast, setSavedToast] = useState(false)
   // Freelancer
-  const [freelancerName,  setFreelancerName]  = useState('Jane Doe Designs')
-  const [freelancerEmail, setFreelancerEmail] = useState('jane@example.com')
+  const [freelancerName,  setFreelancerName]  = useState(user?.name || '')
+  const [freelancerEmail, setFreelancerEmail] = useState(user?.email || '')
   const [effectiveDate,   setEffectiveDate]   = useState('')
 
   // Client
@@ -105,14 +108,14 @@ export default function ContractBuilderEditor({ onBack }) {
     }
   }
 
-  function handleSaveDraft() {
+  async function handleSaveDraft() {
     if (!clientName.trim() && !businessName.trim() && !clientSearch.trim()) {
       setContractError('Client details are required to save a draft.')
       return
     }
     setContractError('')
     const title = businessName.trim() || clientName.trim() || clientSearch.trim() || 'Untitled Contract'
-    addGeneration({
+    const result = await addGeneration({
       title,
       subtitle: businessType || 'Service Agreement',
       type: 'Contract',
@@ -125,6 +128,14 @@ export default function ContractBuilderEditor({ onBack }) {
       downloadKind: 'contract',
       downloadPayload: buildContractPayload(),
     })
+    if (!result.ok) {
+      setContractError(
+        result.isNetworkError
+          ? 'Server offline — draft not saved to database.'
+          : result.error || 'Failed to save draft.'
+      )
+      return
+    }
     setSavedToast(true)
     setTimeout(() => setSavedToast(false), 2000)
   }
@@ -303,7 +314,7 @@ export default function ContractBuilderEditor({ onBack }) {
                               <div className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-black/20 border-b border-[#2a2a2a] sticky top-0 backdrop-blur-sm">
                                 Existing Clients
                               </div>
-                              {SUGGESTED_CLIENTS.map((c, i) => (
+                              {(clientSearch.trim() ? allClients.filter(c => c.name.toLowerCase().includes(clientSearch.toLowerCase()) || c.email.toLowerCase().includes(clientSearch.toLowerCase())) : allClients).map((c, i) => (
                                 <button
                                   key={i}
                                   className="w-full text-left px-4 py-3 hover:bg-[#252525] flex items-center justify-between group/item transition-colors border-b border-[#2a2a2a]/50 last:border-b-0"
@@ -449,17 +460,14 @@ export default function ContractBuilderEditor({ onBack }) {
                       </div>
                     </div>
                     <div className="h-px bg-[#2a2a2a]" />
-                    <div className="flex items-center gap-3">
-                      <input
-                        className="rounded border-[#2a2a2a] bg-[#1a1a1a] text-[#22c55e] focus:ring-[#22c55e]/50 size-4 cursor-pointer shrink-0"
+                    <div className="pt-2">
+                      <Checkbox
                         id="milestones"
-                        type="checkbox"
                         checked={milestones}
-                        onChange={e => setMilestones(e.target.checked)}
+                        onChange={setMilestones}
+                        label="Split remaining balance into milestones"
+                        labelClassName="text-slate-300"
                       />
-                      <label className="text-sm text-slate-300 select-none cursor-pointer" htmlFor="milestones">
-                        Split remaining balance into milestones
-                      </label>
                     </div>
                   </div>
                 </div>

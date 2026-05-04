@@ -68,6 +68,8 @@ router.post('/word', async (req, res) => {
     milestones = false, lateFee = true, ipTransfer = true, portfolio = false,
   } = req.body
 
+  try {
+
   const total      = items.reduce((s, it) => s + (parseFloat(it.rate) || 0) * (parseInt(it.qty) || 0), 0)
   const depositAmt = (total * deposit) / 100
   const contentW   = DXA(6.5)
@@ -325,6 +327,11 @@ router.post('/word', async (req, res) => {
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
   res.send(buffer)
+
+  } catch (err) {
+    console.error('[contractWord.js] unhandled error', err)
+    if (!res.headersSent) res.status(500).json({ error: 'Server error generating Word document' })
+  }
 })
 
 module.exports = router

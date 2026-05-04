@@ -3,56 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import Sidebar from '../components/Sidebar'
 
-const RECENT_ROWS = [
-  {
-    type: 'Invoice',
-    typeStyle: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    initials: 'AC',
-    client: 'Acme Corp',
-    date: 'Oct 24, 2023',
-    amount: '$1,200.00',
-    amountClass: 'text-[#f5f5f5]',
-    status: 'Paid',
-    statusStyle: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    dotStyle: 'bg-emerald-400',
-  },
-  {
-    type: 'Contract',
-    typeStyle: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-    initials: 'SI',
-    client: 'Stark Industries',
-    date: 'Oct 22, 2023',
-    amount: '-',
-    amountClass: 'text-slate-400',
-    status: 'Active',
-    statusStyle: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    dotStyle: 'bg-blue-400',
-  },
-  {
-    type: 'Invoice',
-    typeStyle: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    initials: 'CS',
-    client: 'Cyberdyne Systems',
-    date: 'Oct 20, 2023',
-    amount: '$850.00',
-    amountClass: 'text-[#f5f5f5]',
-    status: 'Overdue',
-    statusStyle: 'bg-red-500/10 text-red-400 border-red-500/20',
-    dotStyle: 'bg-red-400',
-  },
-  {
-    type: 'Invoice',
-    typeStyle: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    initials: 'WE',
-    client: 'Wayne Enterprises',
-    date: 'Oct 18, 2023',
-    amount: '$2,400.00',
-    amountClass: 'text-[#f5f5f5]',
-    status: 'Pending',
-    statusStyle: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-    dotStyle: 'bg-amber-400',
-  },
-]
 
 const STATUS_STYLES = {
   paid:    { label: 'Paid',    statusStyle: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', dotStyle: 'bg-emerald-400' },
@@ -92,6 +42,12 @@ export default function Dashboard() {
         return sum + (Number.isFinite(numeric) ? numeric : 0)
       }, 0)
   }, [invoiceGenerations])
+  const activeContractsCount = useMemo(() => {
+    return generations.filter(g =>
+      (g.type || '').toLowerCase() === 'contract' &&
+      ['active', 'sent', 'signed', 'paid'].includes((g.status || '').toLowerCase())
+    ).length
+  }, [generations])
   const recentRows = useMemo(() => {
     const mapped = generations
       .slice()
@@ -122,7 +78,7 @@ export default function Dashboard() {
           dotStyle: cfg.dotStyle,
         }
       })
-    return mapped.length ? mapped : RECENT_ROWS
+    return mapped
   }, [generations])
 
   return (
@@ -172,16 +128,12 @@ export default function Dashboard() {
                 <div className="p-2.5 rounded-lg bg-[#111111] border border-[#27272a] text-slate-400">
                   <span className="material-symbols-outlined">group</span>
                 </div>
-                <span className="flex items-center gap-1 text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full">
-                  <span className="material-symbols-outlined text-[14px]">trending_up</span>
-                  +16.6%
-                </span>
               </div>
               <div>
                 <p className="text-slate-400 text-sm font-medium">Total Clients</p>
                 <h3 className="text-2xl font-bold text-[#f5f5f5] mt-1">{clients.length}</h3>
               </div>
-              <p className="text-xs text-slate-500 font-medium">+2 this month</p>
+              <p className="text-xs text-slate-500 font-medium">All time</p>
             </div>
 
             {/* Total Invoices */}
@@ -190,16 +142,12 @@ export default function Dashboard() {
                 <div className="p-2.5 rounded-lg bg-[#111111] border border-[#27272a] text-slate-400">
                   <span className="material-symbols-outlined">receipt_long</span>
                 </div>
-                <span className="flex items-center gap-1 text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full">
-                  <span className="material-symbols-outlined text-[14px]">trending_up</span>
-                  +8.2%
-                </span>
               </div>
               <div>
                 <p className="text-slate-400 text-sm font-medium">Total Invoices</p>
                 <h3 className="text-2xl font-bold text-[#f5f5f5] mt-1">{invoiceGenerations.length}</h3>
               </div>
-              <p className="text-xs text-slate-500 font-medium">+5 this month</p>
+              <p className="text-xs text-slate-500 font-medium">All time</p>
             </div>
 
             {/* Active Contracts */}
@@ -208,15 +156,12 @@ export default function Dashboard() {
                 <div className="p-2.5 rounded-lg bg-[#111111] border border-[#27272a] text-slate-400">
                   <span className="material-symbols-outlined">contract</span>
                 </div>
-                <span className="flex items-center gap-1 text-xs font-medium text-slate-400 bg-[#111111] px-2 py-1 rounded-full">
-                  <span>Same</span>
-                </span>
               </div>
               <div>
                 <p className="text-slate-400 text-sm font-medium">Active Contracts</p>
-                <h3 className="text-2xl font-bold text-[#f5f5f5] mt-1">3</h3>
+                <h3 className="text-2xl font-bold text-[#f5f5f5] mt-1">{activeContractsCount}</h3>
               </div>
-              <p className="text-xs text-slate-500 font-medium">+1 this month</p>
+              <p className="text-xs text-slate-500 font-medium">All time</p>
             </div>
 
             {/* Pending Payments */}
@@ -226,10 +171,6 @@ export default function Dashboard() {
                 <div className="p-2.5 rounded-lg bg-[#22c55e]/10 border border-[#22c55e]/20 text-[#22c55e]">
                   <span className="material-symbols-outlined">payments</span>
                 </div>
-                <span className="flex items-center gap-1 text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full">
-                  <span className="material-symbols-outlined text-[14px]">trending_up</span>
-                  +12%
-                </span>
               </div>
               <div className="relative z-10">
                 <p className="text-slate-400 text-sm font-medium">Pending Payments</p>
@@ -268,7 +209,17 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#27272a]/50 text-slate-200">
-                    {recentRows.map((row, i) => (
+                    {recentRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-16 text-center">
+                          <div className="flex flex-col items-center gap-3 text-slate-500">
+                            <span className="material-symbols-outlined text-4xl text-slate-600">receipt_long</span>
+                            <p className="text-sm font-medium">No activity yet</p>
+                            <p className="text-xs">Generate your first invoice or contract to see it here.</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : recentRows.map((row, i) => (
                       <tr key={i} className="group hover:bg-white/[0.02] transition-colors">
                         <td className="px-6 py-4">
                           <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${row.typeStyle}`}>
@@ -292,8 +243,8 @@ export default function Dashboard() {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <button className="text-slate-500 hover:text-white p-1 rounded-md hover:bg-white/10 transition-colors">
-                            <span className="material-symbols-outlined text-[20px]">more_vert</span>
+                          <button onClick={() => navigate('/my-generations')} className="text-slate-500 hover:text-[#22c55e] p-1 rounded-md hover:bg-[#22c55e]/10 transition-colors" title="View details">
+                            <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
                           </button>
                         </td>
                       </tr>

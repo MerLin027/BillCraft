@@ -2,43 +2,33 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import Sidebar from '../components/Sidebar'
-import { STATIC_CLIENTS } from '../data/staticClients'
 
-const API_BASE = ''
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
 const inputUnderline =
   'w-full bg-transparent border-0 border-b border-[#2a2a2a] focus:border-[#22c55e] px-0 py-2 text-[#f5f5f5] placeholder-[#888888] focus:ring-0 outline-none transition-colors text-sm'
 
 export default function InvoiceGenerator() {
   const navigate = useNavigate()
-  const { user, addGeneration, clients, sidebarCollapsed } = useApp()
+  // F-8: added `generations` to fix crash; F-18: `addGeneration` now returns server response
+  const { user, addGeneration, clients, generations, sidebarCollapsed } = useApp()
 
-  // Map AppContext (user-added) clients to invoice shape
-  const contextClients = clients.map(c => ({
-    name:    c.name    || '',
-    email:   c.email   || '',
+  // F-9 for invoice: only real API clients — no static demo data
+  const allClients = clients.map(c => ({
+    name:    c.name     || '',
+    email:   c.email    || '',
     company: c.business || c.name || '',
-    phone:   c.phone   || '',
-    type:    c.industry || '',
-    address: '', city: '', zip: '',
-  }))
-
-  // Map shared STATIC_CLIENTS (demo clients from Clients page) to invoice shape
-  const staticMapped = STATIC_CLIENTS.map(c => ({
-    name:    c.name,
-    email:   c.email,
-    company: c.business || '',
     phone:   c.phone    || '',
     type:    c.industry || '',
     address: '', city: '', zip: '',
   }))
 
-  // Context clients first, then static demo clients
-  const allClients = [...contextClients, ...staticMapped]
-
   // Invoice meta
-  const [dateIssued, setDateIssued] = useState('2023-10-27')
+  const [dateIssued, setDateIssued] = useState(new Date().toISOString().split('T')[0])
   const [dateDue,    setDateDue]    = useState('')
+  const invoiceCount = generations.filter(g => g.type === 'Invoice').length
+  const defaultInvoiceNum = 'INV-' + String(invoiceCount + 1).padStart(4, '0')
+  const [invoiceNumber, setInvoiceNumber] = useState(defaultInvoiceNum)
 
   // Bill From
   const [fromName,   setFromName]   = useState('')
@@ -50,6 +40,7 @@ export default function InvoiceGenerator() {
   // Bill To
   const [clientSearch, setClientSearch] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
+  const [toName,       setToName]       = useState('')   // F-8: was missing — caused crash
   const [toCompany,    setToCompany]    = useState('')
   const [toPhone,      setToPhone]      = useState('')
   const [toType,       setToType]       = useState('')
@@ -87,7 +78,7 @@ export default function InvoiceGenerator() {
 
   function buildInvoicePayload() {
     return {
-      invoiceNumber: 'INV-0024',
+      invoiceNumber,
       dateIssued,
       dateDue,
       fromName,
@@ -95,7 +86,7 @@ export default function InvoiceGenerator() {
       fromStreet,
       fromCity,
       fromZip,
-      toName: clientSearch,
+      toName,
       toEmail: clientSearch,
       toCompany,
       toPhone,
@@ -117,26 +108,35 @@ export default function InvoiceGenerator() {
     return errs.length === 0
   }
 
-  function handleSaveDraft() {
+  // F-18: await addGeneration so we can read the server-assigned invoiceNumber
+  async function handleSaveDraft() {
     if (!clientSearch.trim() && !toCompany.trim()) {
       setInvoiceErrors(['Client name / email is required to save a draft.'])
       return
     }
     setInvoiceErrors([])
-    const title = toCompany.trim() || clientSearch.trim() || 'Untitled Invoice'
-    addGeneration({
+    const title = toName.trim() || toCompany.trim() || clientSearch.trim() || 'Untitled Invoice'
+    const result = await addGeneration({
       title,
       subtitle: toType || 'Invoice',
       type: 'Invoice',
       typeIcon: 'receipt_long',
-      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      dateRed: false,
       amount: fmt(totalDue),
-      status: 'pending',
-      statusOptions: ['paid', 'pending', 'overdue'],
+      status: 'Pending',
       downloadKind: 'invoice',
       downloadPayload: buildInvoicePayload(),
     })
+    if (!result.ok) {
+      setInvoiceErrors([
+        result.isNetworkError
+          ? 'Server offline — draft not saved to database.'
+          : result.error || 'Failed to save draft.',
+      ])
+      return
+    }
+    if (result.generation?.invoiceNumber) {
+      setInvoiceNumber(result.generation.invoiceNumber)  // F-18: update display
+    }
     setSavedToast(true)
     setTimeout(() => setSavedToast(false), 2000)
   }
@@ -156,9 +156,23 @@ export default function InvoiceGenerator() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `INV-0024-${toCompany || clientSearch || 'invoice'}.pdf`
+      a.download = `${invoiceNumber}-${toCompany || clientSearch || 'invoice'}.pdf`
       a.click()
       URL.revokeObjectURL(url)
+      // F-18: save generation and read back server-assigned invoiceNumber
+      const result = await addGeneration({
+        title: toName || toCompany || clientSearch || 'Invoice',
+        subtitle: toType || 'Invoice',
+        type: 'Invoice',
+        typeIcon: 'receipt_long',
+        amount: fmt(totalDue),
+        status: 'Pending',
+        downloadKind: 'invoice-pdf',
+        downloadPayload: buildInvoicePayload(),
+      })
+      if (result?.ok && result.generation?.invoiceNumber) {
+        setInvoiceNumber(result.generation.invoiceNumber)
+      }
     } catch (err) {
       setInvoiceErrors([`Download failed. ${err?.message || 'Please ensure backend is running.'}`])
     } finally {
@@ -181,9 +195,22 @@ export default function InvoiceGenerator() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `INV-0024-${toCompany || clientSearch || 'invoice'}.docx`
+      a.download = `${invoiceNumber}-${toCompany || clientSearch || 'invoice'}.docx`
       a.click()
       URL.revokeObjectURL(url)
+      const result = await addGeneration({
+        title: toName || toCompany || clientSearch || 'Invoice',
+        subtitle: toType || 'Invoice',
+        type: 'Invoice',
+        typeIcon: 'receipt_long',
+        amount: fmt(totalDue),
+        status: 'Pending',
+        downloadKind: 'invoice-word',
+        downloadPayload: buildInvoicePayload(),
+      })
+      if (result?.ok && result.generation?.invoiceNumber) {
+        setInvoiceNumber(result.generation.invoiceNumber)
+      }
     } catch (err) {
       setInvoiceErrors([`Download failed. ${err?.message || 'Please ensure backend is running.'}`])
     } finally {
@@ -193,6 +220,7 @@ export default function InvoiceGenerator() {
 
   function selectClient(c) {
     setClientSearch(c.email)
+    setToName(c.name)
     setToCompany(c.company)
     setToPhone(c.phone)
     setToType(c.type)
@@ -286,10 +314,10 @@ export default function InvoiceGenerator() {
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888888] material-symbols-outlined text-[18px]">tag</span>
                         <input
-                          className="w-full bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg h-10 pl-9 pr-3 text-[#f5f5f5] font-mono text-sm focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e] outline-none cursor-default"
-                          readOnly
+                          className="w-full bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg h-10 pl-9 pr-3 text-[#f5f5f5] font-mono text-sm focus:ring-1 focus:ring-[#22c55e] focus:border-[#22c55e] outline-none"
                           type="text"
-                          defaultValue="INV-0024"
+                          value={invoiceNumber}
+                          onChange={e => setInvoiceNumber(e.target.value)}
                         />
                       </div>
                     </div>

@@ -7,7 +7,7 @@ const TICK = 16     // ~60fps
 
 export default function SplashScreen() {
   const navigate = useNavigate()
-  const { user, clients, generations } = useApp()
+  const { user } = useApp()
 
   const [progress, setProgress] = useState(0)
   const startRef = useRef(null)

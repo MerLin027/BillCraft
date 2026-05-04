@@ -1,151 +1,256 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import {
+  getToken, setToken, clearToken,
+  apiGetMe, apiLogin, apiRegister,
+  apiGetClients, apiAddClient, apiUpdateClient, apiDeleteClient,
+  apiGetGenerations, apiAddGeneration, apiUpdateGeneration, apiUpdateGenerationStatus, apiDeleteGeneration,
+} from '../services/api'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AppContext — single source of truth for auth, clients, and generations.
+// All state is driven by the backend (MongoDB). localStorage is used only for
+// the JWT token and the sidebar collapsed preference.
+//
+// serverOnline: tracks whether the backend was reachable on the last attempt.
+//   true  = last request succeeded
+//   false = last request got a network-level failure (server down / wrong URL)
+//   null  = not yet determined (app is still loading)
+// ─────────────────────────────────────────────────────────────────────────────
 
 const AppContext = createContext()
-const CLIENTS_KEY = 'billcraft_clients'
-const GENERATIONS_KEY = 'billcraft_generations'
-const USERS_KEY = 'billcraft_users'
+
+const SIDEBAR_KEY = 'billcraft_sidebar_collapsed'
 
 export function AppProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      const stored = localStorage.getItem('billcraft_user')
-      return stored ? JSON.parse(stored) : null
-    } catch {
-      return null
-    }
-  })
-  const [clients, setClients] = useState(() => {
-    try {
-      const stored = localStorage.getItem(CLIENTS_KEY)
-      return stored ? JSON.parse(stored) : []
-    } catch {
-      return []
-    }
-  })
-  const [generations, setGenerations] = useState(() => {
-    try {
-      const stored = localStorage.getItem(GENERATIONS_KEY)
-      return stored ? JSON.parse(stored) : []
-    } catch {
-      return []
-    }
-  })
+
+  // ── Auth state ──────────────────────────────────────────────────────────────
+  const [user,        setUser]        = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
+
+  // ── Server reachability state ───────────────────────────────────────────────
+  // null = unknown (startup), true = reachable, false = unreachable
+  const [serverOnline, setServerOnline] = useState(null)
+
+  // ── Data state ─────────────────────────────────────────────────────────────
+  const [clients,     setClients]     = useState([])
+  const [generations, setGenerations] = useState([])
+
+  // ── UI state ───────────────────────────────────────────────────────────────
   const [intendedDestination, setIntendedDestination] = useState(null)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const toggleSidebar = () => setSidebarCollapsed(v => !v)
-  const [users, setUsers] = useState(() => {
-    try {
-      const stored = localStorage.getItem(USERS_KEY)
-      return stored ? JSON.parse(stored) : []
-    } catch {
-      return []
-    }
+
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem(SIDEBAR_KEY) === 'true' } catch { return false }
+  })
+  const toggleSidebar = () => setSidebarCollapsed(v => {
+    const next = !v
+    try { localStorage.setItem(SIDEBAR_KEY, String(next)) } catch {}
+    return next
   })
 
+  // ── Helper: tag error type ─────────────────────────────────────────────────
+  const isNetworkErr = (err) => err?.isNetworkError === true
 
-  const login = ({ email, password }) => {
-    const matched = users.find(
-      u => u.provider === 'email' &&
-      u.email.toLowerCase() === email.toLowerCase() &&
-      u.password === password
-    )
-    if (!matched) {
-      return { ok: false, error: 'Invalid email or password.' }
+  // ── Session restore on mount ───────────────────────────────────────────────
+  // If a JWT exists, validate it via GET /api/auth/me.
+  // - Auth failure (401) → token is stale, clear it, mark server online
+  // - Network failure    → don't clear token (server may just be starting up),
+  //                        mark server offline
+  useEffect(() => {
+    const token = getToken()
+    if (!token) { setAuthLoading(false); setServerOnline(null); return }
+
+    apiGetMe()
+      .then(data => {
+        setUser(data.user)
+        setServerOnline(true)
+      })
+      .catch(err => {
+        if (isNetworkErr(err)) {
+          // Server unreachable — keep the token so the user stays "logged in"
+          // when the server comes back. Banner will inform them.
+          setServerOnline(false)
+        } else {
+          // Token expired or invalid — clear it and log out
+          clearToken()
+          setUser(null)
+          setServerOnline(true)  // server responded, so it IS online
+        }
+      })
+      .finally(() => setAuthLoading(false))
+  }, [])
+
+  // ── Fetch clients + generations when user is known ─────────────────────────
+  const fetchData = useCallback(async () => {
+    try {
+      const [cRes, gRes] = await Promise.all([apiGetClients(), apiGetGenerations()])
+      setClients(cRes.clients || [])
+      setGenerations(gRes.generations || [])
+      setServerOnline(true)
+    } catch (err) {
+      if (isNetworkErr(err)) {
+        setServerOnline(false)
+        setClients([])
+        setGenerations([])
+      } else {
+        // Auth error mid-session -> token expired/invalid
+        clearToken()
+        setUser(null)
+        setServerOnline(true)
+      }
     }
-    const userData = { name: matched.name, email: matched.email, provider: matched.provider }
-    localStorage.setItem('billcraft_user', JSON.stringify(userData))
-    setUser(userData)
-    return { ok: true }
+  }, [])
+
+  useEffect(() => {
+    if (user) fetchData()
+    else { setClients([]); setGenerations([]) }
+  }, [user, fetchData])
+
+  // ── Auth actions ───────────────────────────────────────────────────────────
+
+  const login = async ({ email, password }) => {
+    try {
+      const data = await apiLogin(email, password)
+      setToken(data.token)
+      setUser(data.user)
+      setServerOnline(true)
+      return { ok: true }
+    } catch (err) {
+      if (isNetworkErr(err)) {
+        setServerOnline(false)
+        return { ok: false, error: err.message, isNetworkError: true }
+      }
+      setServerOnline(true)
+      return { ok: false, error: err.message || 'Invalid email or password.' }
+    }
   }
 
-  const signUp = ({ name, email, password }) => {
-    const exists = users.some(u => u.email.toLowerCase() === email.toLowerCase())
-    if (exists) {
-      return { ok: false, error: 'An account with this email already exists.' }
+  const signUp = async ({ name, email, password }) => {
+    try {
+      const data = await apiRegister(name, email, password)
+      setToken(data.token)
+      setUser(data.user)
+      setServerOnline(true)
+      return { ok: true }
+    } catch (err) {
+      if (isNetworkErr(err)) {
+        setServerOnline(false)
+        return { ok: false, error: err.message, isNetworkError: true }
+      }
+      setServerOnline(true)
+      return { ok: false, error: err.message || 'Sign up failed.' }
     }
-    const newUser = { id: Date.now(), name, email, password, provider: 'email' }
-    const nextUsers = [...users, newUser]
-    setUsers(nextUsers)
-    localStorage.setItem(USERS_KEY, JSON.stringify(nextUsers))
-    const userData = { name, email, provider: 'email' }
-    localStorage.setItem('billcraft_user', JSON.stringify(userData))
-    setUser(userData)
-    return { ok: true }
   }
 
-  const loginWithGoogle = () => {
-    const googleUser = {
-      id: Date.now(),
-      name: 'Google User',
-      email: `google.user.${Date.now()}@gmail.com`,
-      provider: 'google',
-    }
-    const nextUsers = [...users, googleUser]
-    setUsers(nextUsers)
-    localStorage.setItem(USERS_KEY, JSON.stringify(nextUsers))
-    const userData = { name: googleUser.name, email: googleUser.email, provider: googleUser.provider }
-    localStorage.setItem('billcraft_user', JSON.stringify(userData))
-    setUser(userData)
-    return { ok: true }
-  }
+  const loginWithGoogle = () => ({ ok: false, error: 'Google login coming soon.' })
 
   const logout = () => {
-    localStorage.removeItem('billcraft_user')
+    clearToken()
     setUser(null)
+    setClients([])
+    setGenerations([])
   }
 
-  const addClient = (clientData) => {
-    setClients(prev => {
-      const exists = prev.find(c => c.email === clientData.email)
-      if (exists) return prev
-      const next = [...prev, { ...clientData, id: Date.now(), dateAdded: new Date().toLocaleDateString() }]
-      localStorage.setItem(CLIENTS_KEY, JSON.stringify(next))
-      return next
-    })
+  const updateUser = (updatedUser) => setUser(updatedUser)
+
+  // ── Client actions ─────────────────────────────────────────────────────────
+
+  const addClient = async (clientData) => {
+    try {
+      const data = await apiAddClient(clientData)
+      setClients(prev => [...prev, data.client])
+      setServerOnline(true)
+      return { ok: true, client: data.client }
+    } catch (err) {
+      if (isNetworkErr(err)) setServerOnline(false)
+      return { ok: false, error: err.message, isNetworkError: isNetworkErr(err) }
+    }
   }
 
-  const updateClient = (id, updatedData) => {
-    setClients(prev => {
-      const next = prev.map(c => c.id === id ? { ...c, ...updatedData } : c)
-      localStorage.setItem(CLIENTS_KEY, JSON.stringify(next))
-      return next
-    })
+  const updateClient = async (id, updatedData) => {
+    try {
+      const data = await apiUpdateClient(id, updatedData)
+      setClients(prev => prev.map(c => (c._id === id ? data.client : c)))
+      setServerOnline(true)
+      return { ok: true }
+    } catch (err) {
+      if (isNetworkErr(err)) setServerOnline(false)
+      return { ok: false, error: err.message, isNetworkError: isNetworkErr(err) }
+    }
   }
 
-  const deleteClient = (id) => {
-    setClients(prev => {
-      const next = prev.filter(c => c.id !== id)
-      localStorage.setItem(CLIENTS_KEY, JSON.stringify(next))
-      return next
-    })
+  const deleteClient = async (id) => {
+    try {
+      await apiDeleteClient(id)
+      setClients(prev => prev.filter(c => c._id !== id))
+      setServerOnline(true)
+      return { ok: true }
+    } catch (err) {
+      if (isNetworkErr(err)) setServerOnline(false)
+      return { ok: false, error: err.message, isNetworkError: isNetworkErr(err) }
+    }
   }
 
-  const addGeneration = (generation) => {
-    setGenerations(prev => {
-      const next = [...prev, {
-        ...generation,
-        id: Date.now(),
-        status: 'Pending',
-        createdAt: new Date().toISOString(),
-      }]
-      localStorage.setItem(GENERATIONS_KEY, JSON.stringify(next))
-      return next
-    })
+  // ── Generation actions ─────────────────────────────────────────────────────
+
+  const addGeneration = async (generationData) => {
+    try {
+      const data = await apiAddGeneration(generationData)
+      setGenerations(prev => [data.generation, ...prev])
+      setServerOnline(true)
+      return { ok: true, generation: data.generation }
+    } catch (err) {
+      if (isNetworkErr(err)) setServerOnline(false)
+      return { ok: false, error: err.message, isNetworkError: isNetworkErr(err) }
+    }
   }
 
-  const updateGenerationStatus = (id, status) => {
-    setGenerations(prev => {
-      const next = prev.map(g => g.id === id ? { ...g, status } : g)
-      localStorage.setItem(GENERATIONS_KEY, JSON.stringify(next))
-      return next
-    })
+  const updateGenerationStatus = async (id, status) => {
+    try {
+      const data = await apiUpdateGenerationStatus(id, status)
+      setGenerations(prev => prev.map(g => (g._id === id ? data.generation : g)))
+      setServerOnline(true)
+      return { ok: true }
+    } catch (err) {
+      if (isNetworkErr(err)) setServerOnline(false)
+      return { ok: false, error: err.message, isNetworkError: isNetworkErr(err) }
+    }
+  }
+
+  const updateGeneration = async (id, fields) => {
+    try {
+      const data = await apiUpdateGeneration(id, fields)
+      setGenerations(prev => prev.map(g => (g._id === id ? data.generation : g)))
+      setServerOnline(true)
+      return { ok: true, generation: data.generation }
+    } catch (err) {
+      if (isNetworkErr(err)) setServerOnline(false)
+      return { ok: false, error: err.message, isNetworkError: isNetworkErr(err) }
+    }
+  }
+
+  const deleteGeneration = async (id) => {
+    try {
+      await apiDeleteGeneration(id)
+      setGenerations(prev => prev.filter(g => g._id !== id))
+      setServerOnline(true)
+      return { ok: true }
+    } catch (err) {
+      if (isNetworkErr(err)) setServerOnline(false)
+      return { ok: false, error: err.message, isNetworkError: isNetworkErr(err) }
+    }
   }
 
   return (
     <AppContext.Provider value={{
-      user, login, signUp, loginWithGoogle, logout,
+      // Auth
+      user, authLoading, login, signUp, loginWithGoogle, logout, updateUser,
+      // Server status
+      serverOnline,
+      // Clients
       clients, addClient, updateClient, deleteClient,
-      generations, addGeneration, updateGenerationStatus,
+      // Generations
+      generations, addGeneration, updateGeneration, updateGenerationStatus, deleteGeneration,
+      // UI
       intendedDestination, setIntendedDestination,
       sidebarCollapsed, toggleSidebar,
     }}>
