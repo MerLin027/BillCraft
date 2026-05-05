@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useApp } from '../context/AppContext'
 import Sidebar from '../components/Sidebar'
 import ContractBuilderEditor from './ContractBuilderEditor'
@@ -12,22 +13,48 @@ const STATUS_CONFIG = {
 
 function ContractStatusBadge({ status, onChange }) {
   const [open, setOpen] = useState(false)
-  const cfg      = STATUS_CONFIG[status] ?? STATUS_CONFIG.Draft
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0 })
+  const btnRef  = useRef(null)
+  const dropRef = useRef(null)
+  const cfg       = STATUS_CONFIG[status] ?? STATUS_CONFIG.Draft
   const textColor = cfg.text
+
+  function handleOpen() {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect()
+      setDropPos({ top: rect.bottom + 4, left: rect.left })
+    }
+    setOpen(v => !v)
+  }
+
+  useEffect(() => {
+    if (!open) return
+    function handleMouseDown(e) {
+      if (dropRef.current?.contains(e.target)) return
+      if (btnRef.current?.contains(e.target))  return
+      setOpen(false)
+    }
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => document.removeEventListener('mousedown', handleMouseDown)
+  }, [open])
+
   return (
-    <div className="relative inline-block" onBlur={() => setOpen(false)} tabIndex={-1}>
+    <div className="relative inline-block">
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen(v => !v)}
+        onClick={handleOpen}
         className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-colors ${cfg.pill}`}
       >
         <span>{cfg.label}</span>
         <span className={`material-symbols-outlined leading-none ${textColor}`} style={{ fontSize: '12px' }}>expand_more</span>
       </button>
-      {open && (
+
+      {open && createPortal(
         <div
-          className="absolute left-0 top-full mt-1 z-50 min-w-[110px] bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg shadow-lg py-1 overflow-hidden"
-          onMouseDown={e => e.preventDefault()}
+          ref={dropRef}
+          style={{ top: dropPos.top, left: dropPos.left }}
+          className="fixed z-[9999] min-w-[110px] bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg shadow-xl py-1 overflow-hidden"
         >
           {Object.keys(STATUS_CONFIG).map(opt => {
             const oc = STATUS_CONFIG[opt]
@@ -35,8 +62,9 @@ function ContractStatusBadge({ status, onChange }) {
               <button
                 key={opt}
                 type="button"
-                className={`w-full text-left px-3 py-1.5 text-xs font-medium transition-colors hover:bg-[#2a2a2a] flex items-center gap-2 ${oc.text}`}
+                onMouseDown={e => e.stopPropagation()}
                 onClick={() => { onChange(opt); setOpen(false) }}
+                className={`w-full text-left px-3 py-1.5 text-xs font-medium transition-colors hover:bg-[#2a2a2a] flex items-center gap-2 ${oc.text}`}
               >
                 {opt === status && <span className="material-symbols-outlined text-[12px]">check</span>}
                 {opt !== status && <span className="w-[12px]" />}
@@ -44,7 +72,8 @@ function ContractStatusBadge({ status, onChange }) {
               </button>
             )
           })}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

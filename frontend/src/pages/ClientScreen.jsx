@@ -248,7 +248,7 @@ export default function ClientScreen() {
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 bg-[#111111] rounded-b-xl border-t border-[#2a2a2a]">
               <button className="px-4 py-2 bg-transparent border border-[#2a2a2a] text-[#a3a3a3] rounded-lg text-sm font-semibold hover:bg-[#0a0a0a] hover:text-white transition-colors" onClick={() => { setAddOpen(false); resetAddForm() }}>Cancel</button>
-              <button className="px-4 py-2 bg-[#22c55e] text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-colors shadow-md shadow-[#22c55e]/20" onClick={handleAddClient}>Add Client</button>
+              <button className="px-4 py-2 bg-[#22c55e] text-[#0a0a0a] rounded-lg text-sm font-bold hover:bg-[#16a34a] transition-colors shadow-[0_0_15px_rgba(34,197,94,0.3)]" onClick={handleAddClient}>Add Client</button>
             </div>
           </div>
         </div>
@@ -292,7 +292,7 @@ export default function ClientScreen() {
             <div className="flex justify-end gap-3 px-6 py-4 bg-[#111111] rounded-b-xl border-t border-[#2a2a2a]">
               <button className="px-4 py-2 bg-transparent border border-[#2a2a2a] text-[#a3a3a3] rounded-lg text-sm font-semibold hover:bg-[#0a0a0a] hover:text-white transition-colors" onClick={() => setEditOpen(false)}>Cancel</button>
               <button
-                className="px-4 py-2 bg-[#22c55e] text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-colors shadow-md shadow-[#22c55e]/20"
+                className="px-4 py-2 bg-[#22c55e] text-[#0a0a0a] rounded-lg text-sm font-bold hover:bg-[#16a34a] transition-colors shadow-[0_0_15px_rgba(34,197,94,0.3)]"
                 onClick={async () => {
                   if (selectedClient?._id) await updateClient(selectedClient._id, editForm)
                   setEditOpen(false)

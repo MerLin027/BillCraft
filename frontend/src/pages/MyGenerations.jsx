@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import Sidebar from '../components/Sidebar'
@@ -34,15 +35,39 @@ function toAmountFromPayload(g) {
 
 function StatusBadge({ status, options, onChange }) {
   const [open, setOpen] = useState(false)
-  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.expired
-  const textColor = STATUS_TEXT[status] ?? 'text-[#a3a3a3]'
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0 })
+  const btnRef  = useRef(null)
+  const dropRef = useRef(null)
+  const cfg       = STATUS_CONFIG[status] ?? STATUS_CONFIG.expired
+  const textColor = STATUS_TEXT[status]   ?? 'text-[#a3a3a3]'
+
+  function handleOpen() {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect()
+      setDropPos({ top: rect.bottom + 4, left: rect.left })
+    }
+    setOpen(v => !v)
+  }
+
+  // Close only when clicking outside both the trigger AND the portal panel
+  useEffect(() => {
+    if (!open) return
+    function handleMouseDown(e) {
+      if (dropRef.current?.contains(e.target)) return  // inside portal panel
+      if (btnRef.current?.contains(e.target))  return  // inside trigger button
+      setOpen(false)
+    }
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => document.removeEventListener('mousedown', handleMouseDown)
+  }, [open])
 
   return (
-    <div className="relative inline-block" onBlur={() => setOpen(false)} tabIndex={-1}>
+    <div className="relative inline-block">
       {/* Trigger pill */}
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen(v => !v)}
+        onClick={handleOpen}
         className={`
           inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full
           text-xs font-medium cursor-pointer transition-colors
@@ -50,25 +75,29 @@ function StatusBadge({ status, options, onChange }) {
         `}
       >
         <span>{cfg.label}</span>
-        <span className={`material-symbols-outlined text-[12px] leading-none ${textColor}`}
-          style={{ fontSize: '12px' }}>
+        <span
+          className={`material-symbols-outlined leading-none ${textColor}`}
+          style={{ fontSize: '12px' }}
+        >
           expand_more
         </span>
       </button>
 
-      {/* Dropdown list */}
-      {open && (
+      {/* Portal — renders on document.body, fully outside the overflow:auto table */}
+      {open && createPortal(
         <div
-          className="absolute left-0 top-full mt-1 z-50 min-w-[110px] bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg shadow-lg py-1 overflow-hidden"
-          onMouseDown={e => e.preventDefault()}
+          ref={dropRef}
+          style={{ top: dropPos.top, left: dropPos.left }}
+          className="fixed z-[9999] min-w-[110px] bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg shadow-xl py-1 overflow-hidden"
         >
           {options.map(opt => {
             const optCfg = STATUS_CONFIG[opt] ?? STATUS_CONFIG.expired
-            const optText = STATUS_TEXT[opt] ?? 'text-[#a3a3a3]'
+            const optText = STATUS_TEXT[opt]   ?? 'text-[#a3a3a3]'
             return (
               <button
                 key={opt}
                 type="button"
+                onMouseDown={e => e.stopPropagation()}   // prevent the doc listener from firing first
                 onClick={() => { onChange(opt); setOpen(false) }}
                 className={`w-full text-left px-3 py-1.5 text-xs font-medium hover:bg-[#22c55e]/10 transition-colors ${optText} ${
                   opt === status ? 'bg-[#22c55e]/5' : ''
@@ -78,7 +107,8 @@ function StatusBadge({ status, options, onChange }) {
               </button>
             )
           })}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

@@ -4,6 +4,25 @@ import { useApp } from '../context/AppContext'
 import Sidebar from '../components/Sidebar'
 
 
+// Compute the numeric dollar value for a generation, falling back to payload items
+function getNumericAmount(g) {
+  const amtStr = String(g.amount || '')
+  if (amtStr && amtStr !== '-' && amtStr !== '$0.00') {
+    const n = Number(amtStr.replace(/[^0-9.-]+/g, ''))
+    if (Number.isFinite(n) && n > 0) return n
+  }
+  // Fallback: compute from downloadPayload (handles invoices with tax, and contracts)
+  const payload = g.downloadPayload
+  if (!payload) return 0
+  const items = payload.items
+  if (!Array.isArray(items)) return 0
+  const subtotal = items.reduce((sum, it) => sum + (Number(it.rate) || 0) * (Number(it.qty) || 0), 0)
+  if (subtotal <= 0) return 0
+  // Apply tax if present (invoice payloads include taxRate %)
+  const taxRate = Number(payload.taxRate) || 0
+  return subtotal + (subtotal * taxRate) / 100
+}
+
 const STATUS_STYLES = {
   paid:    { label: 'Paid',    statusStyle: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', dotStyle: 'bg-emerald-400' },
   active:  { label: 'Active',  statusStyle: 'bg-blue-500/10 text-blue-400 border-blue-500/20',           dotStyle: 'bg-blue-400' },
@@ -35,13 +54,10 @@ export default function Dashboard() {
     [generations]
   )
   const pendingOrOverdueTotal = useMemo(() => {
-    return invoiceGenerations
+    return generations
       .filter(g => ['pending', 'overdue'].includes((g.status || '').toLowerCase()))
-      .reduce((sum, g) => {
-        const numeric = Number(String(g.amount || '').replace(/[^0-9.-]+/g, ''))
-        return sum + (Number.isFinite(numeric) ? numeric : 0)
-      }, 0)
-  }, [invoiceGenerations])
+      .reduce((sum, g) => sum + getNumericAmount(g), 0)
+  }, [generations])
   const activeContractsCount = useMemo(() => {
     return generations.filter(g =>
       (g.type || '').toLowerCase() === 'contract' &&

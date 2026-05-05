@@ -9,6 +9,56 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 const inputClass =
   'w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-[#22c55e] focus:border-transparent outline-none transition-all placeholder:text-slate-600 text-sm'
 
+// ── Fully-themed custom select (native <select> can't be reliably dark-styled) ─
+function CustomSelect({ value, onChange, options, placeholder = 'Select...' }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  const selectedLabel = options.find(o => o.value === value)?.label ?? ''
+
+  useEffect(() => {
+    if (!open) return
+    function handler(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className={`${inputClass} flex items-center justify-between gap-2 cursor-pointer`}
+      >
+        <span className={value ? 'text-white' : 'text-slate-600'}>
+          {value ? selectedLabel : placeholder}
+        </span>
+        <span className="material-symbols-outlined text-slate-500 text-base shrink-0"
+          style={{ fontSize: '18px' }}>
+          {open ? 'expand_less' : 'expand_more'}
+        </span>
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1 w-full z-50 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg shadow-xl overflow-hidden">
+          {options.map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => { onChange(opt.value); setOpen(false) }}
+              className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-[#22c55e]/10 hover:text-[#22c55e] ${
+                opt.value === value ? 'bg-[#22c55e]/5 text-[#22c55e]' : 'text-white'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const sectionLabel = (icon, text) => (
   <div className="flex items-center gap-2 text-[#22c55e] font-bold uppercase text-xs tracking-wider">
     <span className="material-symbols-outlined text-lg">{icon}</span>
@@ -347,14 +397,18 @@ export default function ContractBuilderEditor({ onBack }) {
                         </div>
                         <div className="flex flex-col gap-1.5">
                           <label className="text-xs font-medium text-slate-400">Business Type</label>
-                          <select className={inputClass} value={businessType} onChange={e => setBusinessType(e.target.value)} style={{ colorScheme: 'dark' }}>
-                            <option value="">Select...</option>
-                            <option value="corporation">Corporation</option>
-                            <option value="llc">LLC</option>
-                            <option value="sole_proprietorship">Sole Proprietorship</option>
-                            <option value="non_profit">Non-Profit</option>
-                            <option value="partnership">Partnership</option>
-                          </select>
+                          <CustomSelect
+                            value={businessType}
+                            onChange={setBusinessType}
+                            placeholder="Select..."
+                            options={[
+                              { value: 'corporation',        label: 'Corporation' },
+                              { value: 'llc',               label: 'LLC' },
+                              { value: 'sole_proprietorship', label: 'Sole Proprietorship' },
+                              { value: 'non_profit',        label: 'Non-Profit' },
+                              { value: 'partnership',       label: 'Partnership' },
+                            ]}
+                          />
                         </div>
                       </div>
                     </div>
@@ -452,11 +506,15 @@ export default function ContractBuilderEditor({ onBack }) {
                       </div>
                       <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-medium text-slate-400">Payment Due Date</label>
-                        <select className={inputClass} value={dueDate} onChange={e => setDueDate(e.target.value)} style={{ colorScheme: 'dark' }}>
-                          <option>Net 15</option>
-                          <option>Net 30</option>
-                          <option>Due on Receipt</option>
-                        </select>
+                        <CustomSelect
+                          value={dueDate}
+                          onChange={setDueDate}
+                          options={[
+                            { value: 'Net 15', label: 'Net 15' },
+                            { value: 'Net 30', label: 'Net 30' },
+                            { value: 'Due on Receipt', label: 'Due on Receipt' },
+                          ]}
+                        />
                       </div>
                     </div>
                     <div className="h-px bg-[#2a2a2a]" />
